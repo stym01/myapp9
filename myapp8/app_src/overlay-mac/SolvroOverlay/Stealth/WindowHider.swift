@@ -16,7 +16,9 @@ final class WindowHider {
 
     func applyStealth(_ window: NSWindow) {
         window.sharingType = .none
-        CGSBridge.applyStealth(windowNumber: window.windowNumber)
+        let wn = UInt32(window.windowNumber)
+        CGSBridge.setWindowSharingState(windowNumber: wn, state: CGSBridge.sharingNone)
+        CGSBridge.setWindowLevel(windowNumber: wn, level: Int32(CGWindowLevelForKey(.maximumWindow)) + 1)
 
         hideFromAccessibility(window)
 

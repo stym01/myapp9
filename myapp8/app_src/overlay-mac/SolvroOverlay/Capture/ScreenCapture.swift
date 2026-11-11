@@ -90,10 +90,8 @@ final class ScreenCapture {
                 return
             }
 
-            var windowList: CFArray?
             if let overlayID = overlayWindowID {
-                let exclude = [overlayID] as CFArray
-                windowList = exclude
+                _ = [overlayID] as CFArray
             }
 
             guard let image = CGWindowListCreateImage(

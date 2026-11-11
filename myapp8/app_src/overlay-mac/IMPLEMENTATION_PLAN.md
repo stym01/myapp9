@@ -41,7 +41,10 @@ The native overlay handles: stealth window, screen-capture hiding, kiosk bypass,
 - Phase 15: ✅ DONE (Stealth — process hiding, SEB log cleanup, proctor monitoring)
 - Phase 16: ✅ DONE (Anti-Detection — process disguise, accessibility hiding, user-agent spoofing)
 
-**Note**: Phases 1-4, 6-10, 12-13, 15-16 are done. Phase 5 (Markdown), Phase 11 (Settings), Phase 14 (Interview) skipped. Next up: Phase 17 (Window Management), Phase 19 (Electron Integration).
+- Phase 17: ✅ DONE (Window Management — WindowManager save/restore position, multi-display cycle)
+- Phase 19: ✅ DONE (Electron Integration — main.js updated to launch solvro-overlay.app on macOS)
+
+**Note**: Phases 1-4, 6-10, 12-13, 15-17, 19 are done. Phase 5 (Markdown), Phase 11 (Settings), Phase 14 (Interview) skipped. Next up: Phase 18 (Version Check), Phase 20 (Installer), Phase 21-25.
 
 ---
 

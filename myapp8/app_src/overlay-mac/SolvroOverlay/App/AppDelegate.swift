@@ -37,6 +37,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         overlayController.createAndShow()
 
         if let panel = overlayController.panel {
+            WindowManager.shared.restoreWindowPosition(panel)
             WindowHider.shared.applyStealth(panel)
         }
 
@@ -48,6 +49,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        if let panel = overlayController.panel {
+            WindowManager.shared.saveWindowPosition(panel)
+        }
         SessionManager.shared.stopTokenPolling()
         ProctorMonitor.shared.stopMonitoring()
         SEBLogCleaner.shared.cleanupSEBLogs()
