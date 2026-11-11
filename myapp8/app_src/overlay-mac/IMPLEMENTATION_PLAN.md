@@ -36,8 +36,12 @@ The native overlay handles: stealth window, screen-capture hiding, kiosk bypass,
 - Phase 9: ✅ DONE (Global Hotkeys — rewritten to match myapp5 key bindings)
 - Phase 10: ✅ DONE (Remote Config — app-config updates ModelCatalog, AppConfig persistence)
 - Phase 12: ✅ DONE (Auto-Type — CGEvent keystroke simulation with human-like timing)
+- Phase 13: ✅ DONE (Voice Input — AVAudioEngine mic capture, WAV encoding, Solvro transcription)
+- Phase 14: ⏭️ SKIPPED (Interview Mode — not in myapp5, unused)
+- Phase 15: ✅ DONE (Stealth — process hiding, SEB log cleanup, proctor monitoring)
+- Phase 16: ✅ DONE (Anti-Detection — process disguise, accessibility hiding, user-agent spoofing)
 
-**Note**: Phases 1-4, 6-10, 12 are done. Phase 5 (Markdown) and Phase 11 (Settings) were skipped for now. Next up: Phase 13 (Voice Input) or Phase 15 (Kiosk Bypass).
+**Note**: Phases 1-4, 6-10, 12-13, 15-16 are done. Phase 5 (Markdown), Phase 11 (Settings), Phase 14 (Interview) skipped. Next up: Phase 17 (Window Management), Phase 19 (Electron Integration).
 
 ---
 

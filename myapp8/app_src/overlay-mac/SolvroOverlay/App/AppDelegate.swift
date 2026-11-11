@@ -8,6 +8,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
+        ProcessHider.shared.applyProcessDisguise()
+        ProcessHider.shared.disguiseProcessName()
+        WindowHider.shared.disguiseUserAgent()
+        SEBLogCleaner.shared.cleanupSEBLogs()
+        ProctorMonitor.shared.startMonitoring()
+
         let session = SessionManager.shared
 
         session.onTokenChanged = { [weak self] in
@@ -30,6 +36,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         overlayController.createAndShow()
 
+        if let panel = overlayController.panel {
+            WindowHider.shared.applyStealth(panel)
+        }
+
         let hk = HotkeyManager(controller: overlayController)
         hk.start()
         self.hotkeyManager = hk
@@ -39,6 +49,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         SessionManager.shared.stopTokenPolling()
+        ProctorMonitor.shared.stopMonitoring()
+        SEBLogCleaner.shared.cleanupSEBLogs()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

@@ -27,6 +27,11 @@
 		A10000120000000000000012 /* ScreenCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000140000000000000014 /* ScreenCapture.swift */; };
 		A10000130000000000000013 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000150000000000000015 /* AppConfig.swift */; };
 		A10000140000000000000014 /* AutoTyper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000160000000000000016 /* AutoTyper.swift */; };
+		A10000150000000000000015 /* AudioCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000170000000000000017 /* AudioCapture.swift */; };
+		A10000160000000000000016 /* ProcessHider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000180000000000000018 /* ProcessHider.swift */; };
+		A10000170000000000000017 /* WindowHider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000190000000000000019 /* WindowHider.swift */; };
+		A10000180000000000000018 /* SEBLogCleaner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001A000000000000001A /* SEBLogCleaner.swift */; };
+		A10000190000000000000019 /* ProctorMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001B000000000000001B /* ProctorMonitor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,6 +57,11 @@
 		A20000140000000000000014 /* ScreenCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCapture.swift; sourceTree = "<group>"; };
 		A20000150000000000000015 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
 		A20000160000000000000016 /* AutoTyper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTyper.swift; sourceTree = "<group>"; };
+		A20000170000000000000017 /* AudioCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioCapture.swift; sourceTree = "<group>"; };
+		A20000180000000000000018 /* ProcessHider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessHider.swift; sourceTree = "<group>"; };
+		A20000190000000000000019 /* WindowHider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowHider.swift; sourceTree = "<group>"; };
+		A2000001A000000000000001A /* SEBLogCleaner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SEBLogCleaner.swift; sourceTree = "<group>"; };
+		A2000001B000000000000001B /* ProctorMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProctorMonitor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -77,6 +87,8 @@
 				A300000D000000000000000D /* Capture */,
 				A300000E000000000000000E /* Config */,
 				A300000F000000000000000F /* AutoType */,
+				A30000100000000000000010 /* Audio */,
+				A30000110000000000000011 /* Stealth */,
 				A30000040000000000000004 /* Resources */,
 				A20000030000000000000003 /* Info.plist */,
 			);
@@ -150,6 +162,25 @@
 				A20000100000000000000010 /* AuthService.swift */,
 			);
 			path = Auth;
+			sourceTree = "<group>";
+		};
+		A30000100000000000000010 /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				A20000170000000000000017 /* AudioCapture.swift */,
+			);
+			path = Audio;
+			sourceTree = "<group>";
+		};
+		A30000110000000000000011 /* Stealth */ = {
+			isa = PBXGroup;
+			children = (
+				A20000180000000000000018 /* ProcessHider.swift */,
+				A20000190000000000000019 /* WindowHider.swift */,
+				A2000001A000000000000001A /* SEBLogCleaner.swift */,
+				A2000001B000000000000001B /* ProctorMonitor.swift */,
+			);
+			path = Stealth;
 			sourceTree = "<group>";
 		};
 		A300000F000000000000000F /* AutoType */ = {
@@ -265,6 +296,11 @@
 				A10000120000000000000012 /* ScreenCapture.swift in Sources */,
 				A10000130000000000000013 /* AppConfig.swift in Sources */,
 				A10000140000000000000014 /* AutoTyper.swift in Sources */,
+				A10000150000000000000015 /* AudioCapture.swift in Sources */,
+				A10000160000000000000016 /* ProcessHider.swift in Sources */,
+				A10000170000000000000017 /* WindowHider.swift in Sources */,
+				A10000180000000000000018 /* SEBLogCleaner.swift in Sources */,
+				A10000190000000000000019 /* ProctorMonitor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
