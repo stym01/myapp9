@@ -3,13 +3,18 @@ import Cocoa
 class AppDelegate: NSObject, NSApplicationDelegate {
 
     let overlayController = OverlayWindowController()
+    var hotkeyManager: HotkeyManager?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // No Dock icon, no menu-bar app — pure background agent
         NSApp.setActivationPolicy(.accessory)
 
         overlayController.createAndShow()
-        NSLog("[SolvroOverlay] overlay is live")
+
+        let hk = HotkeyManager(controller: overlayController)
+        hk.start()
+        self.hotkeyManager = hk
+
+        NSLog("[SolvroOverlay] overlay is live, hotkeys active")
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
