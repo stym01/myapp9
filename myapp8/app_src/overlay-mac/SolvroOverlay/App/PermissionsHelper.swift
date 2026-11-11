@@ -1,5 +1,6 @@
 import Cocoa
 import AVFoundation
+import IOKit.pwr_mgt
 
 enum PermissionsHelper {
 
