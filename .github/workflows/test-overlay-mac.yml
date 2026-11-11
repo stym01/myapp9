@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 jobs:
   smoke-test:
@@ -43,93 +44,228 @@ jobs:
           APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "solvro-overlay.app" -type d | head -1)
           echo "app_path=$APP_PATH" >> "$GITHUB_OUTPUT"
           echo "App found at: $APP_PATH"
-          echo ""
-          echo "Binary info:"
           file "$APP_PATH/Contents/MacOS/solvro-overlay"
           lipo -info "$APP_PATH/Contents/MacOS/solvro-overlay"
-          echo ""
-          echo "Bundle contents:"
-          ls -la "$APP_PATH/Contents/"
-          echo ""
-          echo "Info.plist:"
-          cat "$APP_PATH/Contents/Info.plist" 2>/dev/null || echo "No Info.plist"
 
-      - name: Create mock token file (simulate logged-in user)
+      - name: Create mock token file
         run: |
           mkdir -p ~/Desktop
           echo "mock-test-token-for-ci" > ~/Desktop/solvro-token.txt
-          echo "Token file created at ~/Desktop/solvro-token.txt"
 
-      - name: Launch app and smoke test
+      - name: Launch other apps first (Safari, TextEdit, Finder window)
+        run: |
+          echo "=== Launching Safari ==="
+          open -a Safari https://www.example.com &
+          sleep 3
+
+          echo "=== Launching TextEdit ==="
+          open -a TextEdit &
+          sleep 2
+
+          echo "=== Opening a Finder window ==="
+          open ~/Desktop &
+          sleep 2
+
+          echo "=== All background apps launched ==="
+          echo ""
+          echo "Current window list BEFORE overlay:"
+          python3 -c "
+          import Quartz
+          windows = Quartz.CGWindowListCopyWindowInfo(
+              Quartz.kCGWindowListOptionOnScreenOnly,
+              Quartz.kCGNullWindowID
+          )
+          print(f'Total on-screen windows: {len(windows)}')
+          print('')
+          print(f'{\"Owner\":<30} {\"Name\":<40} {\"Level\":<15} {\"Layer\":<8}')
+          print('-' * 95)
+          for w in windows:
+              owner = w.get('kCGWindowOwnerName', '?')
+              name = w.get('kCGWindowName', '(untitled)')
+              level = w.get('kCGWindowLayer', 0)
+              wid = w.get('kCGWindowNumber', 0)
+              print(f'{str(owner):<30} {str(name):<40} {str(level):<15} wid={wid}')
+          "
+
+      - name: Launch overlay and verify it's on top
         run: |
           APP_PATH="${{ steps.locate.outputs.app_path }}"
           BINARY="$APP_PATH/Contents/MacOS/solvro-overlay"
 
           echo "=== Launching overlay app ==="
-          # Launch the binary directly so we can capture stdout/stderr
           "$BINARY" > /tmp/overlay-stdout.log 2> /tmp/overlay-stderr.log &
           APP_PID=$!
           echo "Launched with PID: $APP_PID"
 
           echo ""
-          echo "=== Waiting 8 seconds for startup ==="
-          sleep 8
+          echo "=== Waiting 6 seconds for startup ==="
+          sleep 6
 
           echo ""
           echo "=== Checking if process is alive ==="
           if kill -0 $APP_PID 2>/dev/null; then
-            echo "✅ Process $APP_PID is still running after 8 seconds — no crash!"
+            echo "✅ Process $APP_PID is still running"
           else
             echo "❌ Process $APP_PID has exited"
-            WAIT_STATUS=0
-            wait $APP_PID || WAIT_STATUS=$?
-            echo "Exit code: $WAIT_STATUS"
+            wait $APP_PID || true
+            echo "stderr:"
+            cat /tmp/overlay-stderr.log
+            exit 1
           fi
 
           echo ""
-          echo "=== Process info ==="
-          ps aux | grep -i solvro || true
-
-          echo ""
-          echo "=== stdout log ==="
-          cat /tmp/overlay-stdout.log || echo "(empty)"
-
-          echo ""
-          echo "=== stderr log ==="
+          echo "=== stderr log (app messages) ==="
           cat /tmp/overlay-stderr.log || echo "(empty)"
 
           echo ""
-          echo "=== Checking for crash reports ==="
-          find ~/Library/Logs/DiagnosticReports -name "*solvro*" -o -name "*Solvro*" 2>/dev/null || echo "No crash reports found"
-          ls -la ~/Library/Logs/DiagnosticReports/ 2>/dev/null || echo "No DiagnosticReports directory"
+          echo "========================================="
+          echo "  WINDOW Z-ORDER TEST (overlay on top?)  "
+          echo "========================================="
+          echo ""
+
+          python3 << 'PYEOF'
+          import Quartz
+          import sys
+
+          windows = Quartz.CGWindowListCopyWindowInfo(
+              Quartz.kCGWindowListOptionOnScreenOnly,
+              Quartz.kCGNullWindowID
+          )
+
+          print(f"Total on-screen windows: {len(windows)}")
+          print()
+
+          # Separate overlay vs other app windows
+          overlay_windows = []
+          app_windows = []
+          other_windows = []
+
+          target_apps = {"Safari", "TextEdit", "Finder"}
+
+          for w in windows:
+              owner = w.get("kCGWindowOwnerName", "")
+              name = w.get("kCGWindowName", "(untitled)")
+              level = w.get("kCGWindowLayer", 0)
+              wid = w.get("kCGWindowNumber", 0)
+              bounds = w.get("kCGWindowBounds", {})
+
+              entry = {
+                  "owner": owner,
+                  "name": name,
+                  "level": level,
+                  "wid": wid,
+                  "bounds": bounds
+              }
+
+              if "solvro" in owner.lower():
+                  overlay_windows.append(entry)
+              elif owner in target_apps:
+                  app_windows.append(entry)
+              else:
+                  other_windows.append(entry)
+
+          # Print full window list sorted by level (highest first)
+          all_windows = overlay_windows + app_windows + other_windows
+          all_windows.sort(key=lambda w: w["level"], reverse=True)
+
+          print(f"{'Owner':<25} {'Window Name':<35} {'Level':<12} {'WID':<8} {'Size'}")
+          print("=" * 110)
+          for w in all_windows:
+              b = w["bounds"]
+              size = f"{b.get('Width', '?')}x{b.get('Height', '?')}" if b else "?"
+              marker = " ◄◄◄ OVERLAY" if "solvro" in w["owner"].lower() else ""
+              marker2 = " ◄ APP" if w["owner"] in target_apps else ""
+              print(f"{w['owner']:<25} {str(w['name']):<35} {w['level']:<12} {w['wid']:<8} {size}{marker}{marker2}")
+
+          print()
+          print("=" * 60)
+          print("  OVERLAY vs APP WINDOW LEVEL COMPARISON")
+          print("=" * 60)
+
+          if not overlay_windows:
+              print("❌ FAIL: No overlay window found!")
+              sys.exit(1)
+
+          overlay_level = max(w["level"] for w in overlay_windows)
+          print(f"  Overlay window level:  {overlay_level}")
+
+          if app_windows:
+              max_app_level = max(w["level"] for w in app_windows)
+              print(f"  Highest app level:     {max_app_level}  ({[w['owner'] for w in app_windows if w['level'] == max_app_level]})")
+              print()
+
+              if overlay_level > max_app_level:
+                  print(f"  ✅ PASS: Overlay (level {overlay_level}) is ABOVE all apps (max level {max_app_level})")
+                  print(f"          Difference: +{overlay_level - max_app_level} levels above nearest app")
+              elif overlay_level == max_app_level:
+                  print(f"  ⚠️  Overlay is at SAME level as apps — z-order depends on creation order")
+              else:
+                  print(f"  ❌ FAIL: Overlay (level {overlay_level}) is BELOW apps (max level {max_app_level})")
+                  sys.exit(1)
+          else:
+              print("  (No target app windows found on screen for comparison)")
+              print(f"  Overlay level {overlay_level} — expected to be above normal windows (level 0)")
+              if overlay_level > 0:
+                  print(f"  ✅ PASS: Overlay is above normal window level")
+              else:
+                  print(f"  ❌ FAIL: Overlay is at normal window level")
+                  sys.exit(1)
+
+          print()
+
+          # Also verify stealth: check if overlay is excluded from screen capture list
+          print("=" * 60)
+          print("  STEALTH CHECK (screen capture exclusion)")
+          print("=" * 60)
+
+          capturable = Quartz.CGWindowListCopyWindowInfo(
+              Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements,
+              Quartz.kCGNullWindowID
+          )
+          capturable_owners = [w.get("kCGWindowOwnerName", "") for w in capturable]
+          overlay_in_capture = any("solvro" in o.lower() for o in capturable_owners)
+
+          sharing_types = {}
+          for w in capturable:
+              if "solvro" in w.get("kCGWindowOwnerName", "").lower():
+                  sharing_types[w.get("kCGWindowNumber")] = w.get("kCGWindowSharingState", -1)
+
+          if sharing_types:
+              for wid, sharing in sharing_types.items():
+                  sharing_label = {0: "none", 1: "read-only", 2: "read-write"}.get(sharing, f"unknown({sharing})")
+                  print(f"  Window {wid} sharing state: {sharing_label}")
+                  if sharing == 0:
+                      print(f"  ✅ Window {wid}: sharing=none (hidden from screen capture)")
+                  else:
+                      print(f"  ⚠️  Window {wid}: sharing={sharing_label} (may be visible to capture)")
+          else:
+              print("  ✅ Overlay not found in capturable window list at all")
+
+          print()
+          print("🏁 All checks complete")
+          PYEOF
 
           echo ""
-          echo "=== Checking system log for app messages ==="
-          log show --last 30s --predicate 'process == "solvro-overlay"' 2>/dev/null | tail -30 || echo "No log entries"
+          echo "=== Taking screenshot to verify visual state ==="
+          screencapture -x /tmp/overlay-screenshot.png 2>/dev/null && echo "Screenshot saved" || echo "Screenshot failed (expected in headless)"
 
           echo ""
           echo "=== Killing app ==="
           kill $APP_PID 2>/dev/null || true
           sleep 2
-
-          echo ""
-          echo "=== Final check — process should be gone ==="
           if kill -0 $APP_PID 2>/dev/null; then
-            echo "Process still alive, force killing"
             kill -9 $APP_PID 2>/dev/null || true
           else
             echo "Process exited cleanly after SIGTERM"
           fi
 
-          # Fail the step if the process died before we killed it
-          if ! kill -0 $APP_PID 2>/dev/null; then
-            # Check if we killed it or if it crashed
-            if [ -f /tmp/overlay-stderr.log ] && grep -qi "crash\|abort\|fatal\|segfault" /tmp/overlay-stderr.log; then
-              echo ""
-              echo "❌ FAIL: App appears to have crashed"
-              exit 1
-            fi
-          fi
-
           echo ""
-          echo "✅ Smoke test passed"
+          echo "✅ Overlay-on-top test complete"
+
+      - name: Upload screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: overlay-screenshot
+          path: /tmp/overlay-screenshot.png
+          if-no-files-found: ignore
