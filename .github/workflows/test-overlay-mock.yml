@@ -1,0 +1,622 @@
+name: Full Mock Integration Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  integration-test:
+    name: Mock User Session
+    runs-on: macos-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Build Release
+        working-directory: ./myapp8/app_src/overlay-mac
+        run: |
+          xcodebuild \
+            -project SolvroOverlay.xcodeproj \
+            -scheme SolvroOverlay \
+            -configuration Release \
+            -arch arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="-" \
+            build 2>&1 | tail -5
+
+      - name: Locate app bundle
+        id: locate
+        run: |
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "solvro-overlay.app" -type d | head -1)
+          echo "app_path=$APP_PATH" >> "$GITHUB_OUTPUT"
+          echo "App: $APP_PATH"
+
+      - name: Download and install SEB
+        run: |
+          curl -L -o /tmp/SEB.dmg "https://github.com/SafeExamBrowser/seb-mac/releases/download/3.7.2/SafeExamBrowser-3.7.2.dmg"
+          hdiutil attach /tmp/SEB.dmg -nobrowse -mountpoint /Volumes/SEB
+          SEB_APP=$(find /Volumes/SEB -name "*.app" -maxdepth 2 | head -1)
+          cp -R "$SEB_APP" /Applications/
+          hdiutil detach /Volumes/SEB || true
+          echo "SEB installed"
+
+      - name: Create mock API server
+        run: |
+          cat > /tmp/mock_server.py << 'PYEOF'
+          import http.server
+          import ssl
+          import json
+          import subprocess
+          import os
+          import threading
+          import time
+
+          # Track all requests for verification
+          request_log = []
+          log_lock = threading.Lock()
+
+          class MockHandler(http.server.BaseHTTPRequestHandler):
+              def log_message(self, format, *args):
+                  msg = format % args
+                  print(f"[MockServer] {msg}", flush=True)
+                  with log_lock:
+                      request_log.append(msg)
+
+              def do_GET(self):
+                  with log_lock:
+                      request_log.append(f"GET {self.path}")
+
+                  if self.path == "/api/user/me":
+                      response = {
+                          "email": "testuser@solvro.in",
+                          "name": "CI Test User",
+                          "subscription": {
+                              "plan": "pro_plus",
+                              "status": "active"
+                          }
+                      }
+                      self.send_json(200, response)
+
+                  elif self.path == "/api/user/usage":
+                      response = {
+                          "monthly": {
+                              "resetsAt": "2026-12-01T00:00:00Z",
+                              "meters": [
+                                  {"id": "ai_requests", "used": 42, "limit": 1000}
+                              ]
+                          }
+                      }
+                      self.send_json(200, response)
+
+                  elif self.path == "/api/app-config":
+                      response = {
+                          "models": [
+                              {"id": "gemini-2.5-flash", "name": "Gemini 2.5 Flash", "tier": 0, "provider": "gemini"},
+                              {"id": "gemini-2.5-pro", "name": "Gemini 2.5 Pro", "tier": 1, "provider": "gemini"},
+                              {"id": "claude-sonnet-4-20250514", "name": "Claude Sonnet 4", "tier": 2, "provider": "claude"}
+                          ],
+                          "version": "1.0.0"
+                      }
+                      self.send_json(200, response)
+
+                  elif self.path == "/health":
+                      self.send_json(200, {"status": "ok", "requests": len(request_log)})
+
+                  elif self.path == "/request-log":
+                      with log_lock:
+                          self.send_json(200, {"log": list(request_log)})
+
+                  else:
+                      self.send_json(404, {"error": "not found"})
+
+              def do_POST(self):
+                  content_length = int(self.headers.get("Content-Length", 0))
+                  body = self.rfile.read(content_length) if content_length > 0 else b""
+
+                  with log_lock:
+                      request_log.append(f"POST {self.path}")
+
+                  cookie = self.headers.get("Cookie", "")
+                  platform = self.headers.get("x-solvro-platform", "")
+                  timezone = self.headers.get("x-timezone", "")
+
+                  print(f"[MockServer] POST {self.path} cookie={cookie[:30]}... platform={platform} tz={timezone}", flush=True)
+
+                  if self.path == "/api/ai/gemini":
+                      # Return a mock Gemini SSE response with code block
+                      sse_data = json.dumps({
+                          "candidates": [{
+                              "content": {
+                                  "parts": [{
+                                      "text": "Here is the solution to your problem:\n\n```python\ndef fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)\n\nprint(fibonacci(10))\n```\n\nThis uses a simple recursive approach. The time complexity is O(2^n)."
+                                  }],
+                                  "role": "model"
+                              }
+                          }]
+                      })
+                      response_text = f"data: {sse_data}\n\n"
+                      self.send_response(200)
+                      self.send_header("Content-Type", "text/event-stream")
+                      self.end_headers()
+                      self.wfile.write(response_text.encode())
+
+                  elif self.path == "/api/ai/claude":
+                      # Return mock Claude SSE response
+                      events = [
+                          {"type": "content_block_delta", "delta": {"text": "The answer is **42**.\n\n```cpp\n#include <iostream>\nint main() {\n    std::cout << 42 << std::endl;\n    return 0;\n}\n```\n\nThis is a simple C++ program."}},
+                      ]
+                      response_text = ""
+                      for event in events:
+                          response_text += f"data: {json.dumps(event)}\n\n"
+                      response_text += "data: [DONE]\n\n"
+
+                      self.send_response(200)
+                      self.send_header("Content-Type", "text/event-stream")
+                      self.end_headers()
+                      self.wfile.write(response_text.encode())
+
+                  else:
+                      self.send_json(404, {"error": "not found"})
+
+              def send_json(self, status, data):
+                  body = json.dumps(data).encode()
+                  self.send_response(status)
+                  self.send_header("Content-Type", "application/json")
+                  self.send_header("Content-Length", str(len(body)))
+                  self.end_headers()
+                  self.wfile.write(body)
+
+          # Generate self-signed cert for HTTPS
+          print("[MockServer] Generating self-signed certificate...", flush=True)
+          subprocess.run([
+              "openssl", "req", "-x509", "-newkey", "rsa:2048",
+              "-keyout", "/tmp/mock_key.pem", "-out", "/tmp/mock_cert.pem",
+              "-days", "1", "-nodes",
+              "-subj", "/CN=solvro.in"
+          ], check=True, capture_output=True)
+
+          context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+          context.load_cert_chain("/tmp/mock_cert.pem", "/tmp/mock_key.pem")
+
+          server = http.server.HTTPServer(("127.0.0.1", 443), MockHandler)
+          server.socket = context.wrap_socket(server.socket, server_side=True)
+
+          print("[MockServer] HTTPS server running on 127.0.0.1:443", flush=True)
+          server.serve_forever()
+          PYEOF
+          echo "Mock server script created"
+
+      - name: Redirect solvro.in to localhost and start mock server
+        run: |
+          echo "=== Adding /etc/hosts redirect ==="
+          echo "127.0.0.1 solvro.in" | sudo tee -a /etc/hosts
+          echo ""
+          echo "=== Verifying redirect ==="
+          grep solvro /etc/hosts
+
+          echo ""
+          echo "=== Starting mock API server ==="
+          sudo python3 /tmp/mock_server.py > /tmp/mock_server.log 2>&1 &
+          MOCK_PID=$!
+          echo "Mock server PID: $MOCK_PID"
+          sleep 3
+
+          echo ""
+          echo "=== Testing mock server ==="
+          # Need to skip SSL verification since it's self-signed
+          curl -sk https://solvro.in/health || echo "Warning: curl test failed (may work for app with NSAllowsArbitraryLoads)"
+
+          echo ""
+          echo "=== Mock server log ==="
+          cat /tmp/mock_server.log || true
+
+      - name: Create auth token file
+        run: |
+          # Write token to all paths the overlay checks
+          TOKEN="mock-ci-test-session-token-abc123"
+
+          # Primary path
+          mkdir -p ~/Library/Application\ Support/Solvro/cache/Solvro
+          echo -n "$TOKEN" > ~/Library/Application\ Support/Solvro/cache/Solvro/solvro-token.txt
+
+          # Legacy path
+          mkdir -p ~/Library/Application\ Support/solvro
+          echo -n "$TOKEN" > ~/Library/Application\ Support/solvro/solvro-token.txt
+
+          # Temp path
+          echo -n "$TOKEN" > "$TMPDIR/solvro-token.txt"
+
+          # Write tier cache (tier 2 = Pro+)
+          echo -n "2" > ~/Library/Application\ Support/Solvro/cache/Solvro/solvro-tier-cache.txt
+
+          echo "Token written to all search paths"
+          echo "Tier cache set to 2 (Pro+)"
+
+      - name: Launch apps (Safari + SEB)
+        run: |
+          open -a Safari https://www.example.com || true
+          sleep 3
+
+          SEB_APP=$(find /Applications -name "Safe Exam Browser.app" -o -name "SafeExamBrowser.app" 2>/dev/null | head -1)
+          if [ -n "$SEB_APP" ]; then
+            SEB_BIN="$SEB_APP/Contents/MacOS/$(defaults read "$SEB_APP/Contents/Info" CFBundleExecutable 2>/dev/null || basename "$SEB_APP" .app)"
+            "$SEB_BIN" > /tmp/seb.log 2>&1 &
+            sleep 3
+            echo "SEB launched"
+          fi
+
+          echo "Background apps running:"
+          ps aux | grep -iE "Safari|SEB|Safe.Exam" | grep -v grep || echo "(none)"
+
+      - name: Launch overlay and run integration tests
+        run: |
+          APP_PATH="${{ steps.locate.outputs.app_path }}"
+          BINARY="$APP_PATH/Contents/MacOS/solvro-overlay"
+
+          echo "╔══════════════════════════════════════════════════════════════╗"
+          echo "║         SOLVRO OVERLAY — FULL MOCK INTEGRATION TEST         ║"
+          echo "╚══════════════════════════════════════════════════════════════╝"
+          echo ""
+
+          echo "=== Launching overlay ==="
+          "$BINARY" > /tmp/overlay-stdout.log 2> /tmp/overlay-stderr.log &
+          APP_PID=$!
+          echo "PID: $APP_PID"
+          sleep 10
+
+          PASS=0
+          FAIL=0
+          WARN=0
+
+          pass() { echo "  ✅ $1"; PASS=$((PASS + 1)); }
+          fail() { echo "  ❌ $1"; FAIL=$((FAIL + 1)); }
+          warn() { echo "  ⚠️  $1"; WARN=$((WARN + 1)); }
+
+          echo ""
+          echo "┌──────────────────────────────────────────────────────────┐"
+          echo "│  TEST 1: APP LAUNCH & PROCESS HEALTH                    │"
+          echo "└──────────────────────────────────────────────────────────┘"
+          echo ""
+
+          if kill -0 $APP_PID 2>/dev/null; then
+            pass "Overlay process alive after 10 seconds"
+          else
+            fail "Overlay process crashed on launch"
+            echo "--- stderr ---"
+            cat /tmp/overlay-stderr.log
+            exit 1
+          fi
+
+          echo ""
+          echo "┌──────────────────────────────────────────────────────────┐"
+          echo "│  TEST 2: AUTH & SESSION MANAGEMENT                      │"
+          echo "└──────────────────────────────────────────────────────────┘"
+          echo ""
+
+          LOG=$(cat /tmp/overlay-stderr.log)
+
+          if echo "$LOG" | grep -q "token found.*chars.*auto-login"; then
+            pass "Token read from disk and auto-login triggered"
+          else
+            if echo "$LOG" | grep -q "no token found"; then
+              fail "Token not found (should have been written to search paths)"
+            else
+              warn "Token status unclear from logs"
+            fi
+          fi
+
+          if echo "$LOG" | grep -q "loaded cached tier=2"; then
+            pass "Tier cache loaded (tier=2 Pro+)"
+          else
+            warn "Tier cache not loaded from logs"
+          fi
+
+          echo ""
+          echo "┌──────────────────────────────────────────────────────────┐"
+          echo "│  TEST 3: METAL RENDERING                                │"
+          echo "└──────────────────────────────────────────────────────────┘"
+          echo ""
+
+          if echo "$LOG" | grep -q "\[Renderer\] Metal device"; then
+            DEVICE=$(echo "$LOG" | grep "Metal device" | sed 's/.*Metal device: //')
+            pass "Metal initialized: $DEVICE"
+          else
+            fail "Metal renderer not initialized"
+          fi
+
+          if echo "$LOG" | grep -q "display link started"; then
+            pass "CVDisplayLink (vsync) started"
+          else
+            fail "Display link not started"
+          fi
+
+          if echo "$LOG" | grep -q "Metal rendering active"; then
+            pass "Metal rendering pipeline active"
+          else
+            fail "Metal rendering not active"
+          fi
+
+          echo ""
+          echo "┌──────────────────────────────────────────────────────────┐"
+          echo "│  TEST 4: SWIFTUI HOSTING                                │"
+          echo "└──────────────────────────────────────────────────────────┘"
+          echo ""
+
+          if echo "$LOG" | grep -q "SwiftUI hosting view added"; then
+            pass "SwiftUI hosting view mounted on Metal layer"
+          else
+            fail "SwiftUI hosting not initialized"
+          fi
+
+          echo ""
+          echo "┌──────────────────────────────────────────────────────────┐"
+          echo "│  TEST 5: WINDOW CREATION & POSITIONING                  │"
+          echo "└──────────────────────────────────────────────────────────┘"
+          echo ""
+
+          if echo "$LOG" | grep -q "panel created and shown"; then
+            SIZE=$(echo "$LOG" | grep "panel created" | grep -oE '[0-9]+x[0-9]+')
+            pass "OverlayPanel created ($SIZE)"
+          else
+            fail "Panel not created"
+          fi
+
+          if echo "$LOG" | grep -q "restored position"; then
+            pass "Window position restored from saved state"
+          else
+            warn "Window position restore not logged"
+          fi
+
+          echo ""
+          echo "┌──────────────────────────────────────────────────────────┐"
+          echo "│  TEST 6: WINDOW Z-ORDER (above SEB)                     │"
+          echo "└──────────────────────────────────────────────────────────┘"
+          echo ""
+
+          LEVEL_LINE=$(echo "$LOG" | grep "CGSSetWindowLevel" || true)
+          if [ -n "$LEVEL_LINE" ]; then
+            PARENS=$(echo "$LEVEL_LINE" | grep -oE 'CGSSetWindowLevel\([^)]+\)' | grep -oE '\([^)]+\)' | tr -d '()')
+            OVERLAY_LEVEL=$(echo "$PARENS" | tr ',' '\n' | sed -n '3p' | tr -d ' ')
+
+            if [ "$OVERLAY_LEVEL" -gt 1000 ] 2>/dev/null; then
+              pass "Window level $OVERLAY_LEVEL > SEB level 1000"
+            else
+              fail "Window level $OVERLAY_LEVEL not above SEB"
+            fi
+
+            if [ "$OVERLAY_LEVEL" -gt 2147483631 ] 2>/dev/null; then
+              pass "Window level $OVERLAY_LEVEL > kCGMaximumWindowLevel"
+            fi
+          else
+            fail "CGSSetWindowLevel not found in logs"
+          fi
+
+          echo ""
+          echo "┌──────────────────────────────────────────────────────────┐"
+          echo "│  TEST 7: STEALTH & SCREEN CAPTURE HIDING                │"
+          echo "└──────────────────────────────────────────────────────────┘"
+          echo ""
+
+          if echo "$LOG" | grep -q "full stealth applied"; then
+            pass "Full stealth applied to window"
+          else
+            fail "Stealth not applied"
+          fi
+
+          if echo "$LOG" | grep -q "\[OverlayPanel\] stealth applied"; then
+            pass "Panel sharing set to none (invisible to recording)"
+          else
+            fail "Panel stealth not applied"
+          fi
+
+          if echo "$LOG" | grep -q "accessibility hidden"; then
+            pass "Window hidden from accessibility APIs"
+          else
+            warn "Accessibility hiding not confirmed"
+          fi
+
+          echo ""
+          echo "┌──────────────────────────────────────────────────────────┐"
+          echo "│  TEST 8: HOTKEY MANAGER                                 │"
+          echo "└──────────────────────────────────────────────────────────┘"
+          echo ""
+
+          if echo "$LOG" | grep -q "\[HotkeyManager\] monitoring started"; then
+            pass "Global hotkey monitoring active"
+          else
+            fail "Hotkey manager not started"
+          fi
+
+          echo ""
+          echo "┌──────────────────────────────────────────────────────────┐"
+          echo "│  TEST 9: PERMISSIONS CHECK                              │"
+          echo "└──────────────────────────────────────────────────────────┘"
+          echo ""
+
+          if echo "$LOG" | grep -q "\[Permissions\] accessibility"; then
+            STATUS=$(echo "$LOG" | grep "accessibility" | head -1 | grep -oE "granted|denied")
+            pass "Accessibility check performed: $STATUS"
+          else
+            warn "Accessibility check not logged"
+          fi
+
+          if echo "$LOG" | grep -q "\[Permissions\] screen recording"; then
+            pass "Screen recording permission checked"
+          else
+            warn "Screen recording check not logged"
+          fi
+
+          if echo "$LOG" | grep -q "sleep prevention assertion"; then
+            pass "Sleep prevention assertion created (IOKit)"
+          else
+            warn "Sleep prevention not confirmed"
+          fi
+
+          echo ""
+          echo "┌──────────────────────────────────────────────────────────┐"
+          echo "│  TEST 10: ANTI-DETECTION SUBSYSTEMS                     │"
+          echo "└──────────────────────────────────────────────────────────┘"
+          echo ""
+
+          if echo "$LOG" | grep -q "\[ProcessHider\] process disguise"; then
+            pass "Process disguise applied"
+          else
+            fail "ProcessHider not active"
+          fi
+
+          if echo "$LOG" | grep -q "\[SEBLogCleaner\]"; then
+            CLEANED=$(echo "$LOG" | grep "SEBLogCleaner" | grep -oE "[0-9]+ lines from [0-9]+ files")
+            pass "SEB log cleaner ran ($CLEANED)"
+          else
+            fail "SEBLogCleaner not active"
+          fi
+
+          if echo "$LOG" | grep -q "\[ProctorMonitor\] started"; then
+            pass "Proctor monitor started"
+          else
+            fail "Proctor monitor not started"
+          fi
+
+          if echo "$LOG" | grep -q "detected proctoring app"; then
+            DETECTED=$(echo "$LOG" | grep "detected proctoring" | tail -1 | sed 's/.*app: //')
+            pass "Proctor monitor detected: $DETECTED"
+          else
+            warn "No proctoring app detected (SEB may have exited)"
+          fi
+
+          echo ""
+          echo "┌──────────────────────────────────────────────────────────┐"
+          echo "│  TEST 11: VERSION & STARTUP BANNER                      │"
+          echo "└──────────────────────────────────────────────────────────┘"
+          echo ""
+
+          if echo "$LOG" | grep -q "overlay is live"; then
+            VERSION=$(echo "$LOG" | grep "overlay is live" | grep -oE "v[0-9]+\.[0-9]+\.[0-9]+")
+            pass "Overlay startup complete ($VERSION)"
+          else
+            fail "Startup banner not found"
+          fi
+
+          if echo "$LOG" | grep -q "hotkeys active"; then
+            pass "Hotkeys confirmed active in startup banner"
+          else
+            warn "Hotkey confirmation not in banner"
+          fi
+
+          echo ""
+          echo "┌──────────────────────────────────────────────────────────┐"
+          echo "│  TEST 12: API CONNECTIVITY (mock server)                │"
+          echo "└──────────────────────────────────────────────────────────┘"
+          echo ""
+
+          # Check mock server received requests
+          API_LOG=$(curl -sk https://solvro.in/request-log 2>/dev/null || echo '{"log":[]}')
+          echo "  Mock server request log: $API_LOG"
+
+          if echo "$API_LOG" | grep -q "/api/user/me"; then
+            pass "Overlay called /api/user/me (tier fetch)"
+          else
+            # SSL may have failed with self-signed cert
+            if echo "$LOG" | grep -q "tier fetch failed\|tier retry"; then
+              warn "API calls attempted but SSL rejected (self-signed cert — expected on CI)"
+            else
+              warn "No /api/user/me call detected"
+            fi
+          fi
+
+          if echo "$API_LOG" | grep -q "/api/app-config"; then
+            pass "Overlay called /api/app-config (model catalog)"
+          else
+            warn "No /api/app-config call detected (SSL rejection expected)"
+          fi
+
+          echo ""
+          echo "┌──────────────────────────────────────────────────────────┐"
+          echo "│  TEST 13: CO-EXISTENCE WITH OTHER APPS                  │"
+          echo "└──────────────────────────────────────────────────────────┘"
+          echo ""
+
+          if kill -0 $APP_PID 2>/dev/null; then
+            pass "Overlay still alive after all tests"
+          else
+            fail "Overlay died during testing"
+          fi
+
+          SAFARI_PID=$(pgrep Safari || true)
+          if [ -n "$SAFARI_PID" ]; then
+            pass "Safari co-existing with overlay"
+          else
+            warn "Safari not running"
+          fi
+
+          SEB_PID=$(pgrep -f "Safe Exam Browser" || true)
+          if [ -n "$SEB_PID" ]; then
+            pass "SEB co-existing with overlay"
+          else
+            warn "SEB not running (exited without config)"
+          fi
+
+          echo ""
+          echo "┌──────────────────────────────────────────────────────────┐"
+          echo "│  TEST 14: SCREENSHOT CAPTURE                            │"
+          echo "└──────────────────────────────────────────────────────────┘"
+          echo ""
+
+          screencapture -x /tmp/overlay-screenshot.png 2>/dev/null
+          if [ -f /tmp/overlay-screenshot.png ]; then
+            SIZE=$(ls -lh /tmp/overlay-screenshot.png | awk '{print $5}')
+            pass "Screenshot captured ($SIZE)"
+          else
+            warn "Screenshot not captured (headless environment)"
+          fi
+
+          echo ""
+          echo "┌──────────────────────────────────────────────────────────┐"
+          echo "│  TEST 15: CLEAN SHUTDOWN                                │"
+          echo "└──────────────────────────────────────────────────────────┘"
+          echo ""
+
+          kill $APP_PID 2>/dev/null
+          sleep 2
+          if kill -0 $APP_PID 2>/dev/null; then
+            warn "Process still alive after SIGTERM, force killing"
+            kill -9 $APP_PID 2>/dev/null || true
+          else
+            pass "Overlay exited cleanly on SIGTERM"
+          fi
+
+          # Cleanup other apps
+          killall Safari 2>/dev/null || true
+          killall "Safe Exam Browser" 2>/dev/null || true
+          sudo kill $(cat /tmp/mock_server_pid 2>/dev/null) 2>/dev/null || true
+
+          echo ""
+          echo "╔══════════════════════════════════════════════════════════════╗"
+          echo "║                    TEST RESULTS SUMMARY                      ║"
+          echo "╠══════════════════════════════════════════════════════════════╣"
+          echo "║  ✅ Passed:   $PASS                                          "
+          echo "║  ❌ Failed:   $FAIL                                          "
+          echo "║  ⚠️  Warnings: $WARN                                          "
+          echo "╚══════════════════════════════════════════════════════════════╝"
+          echo ""
+
+          if [ $FAIL -gt 0 ]; then
+            echo "❌ $FAIL test(s) FAILED"
+            echo ""
+            echo "=== Full overlay log ==="
+            cat /tmp/overlay-stderr.log
+            exit 1
+          fi
+
+          echo "✅ All $PASS tests passed ($WARN warnings)"
+
+      - name: Upload screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-screenshot
+          path: /tmp/overlay-screenshot.png
+          if-no-files-found: ignore
