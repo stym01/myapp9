@@ -2,186 +2,385 @@
 
 ## Architecture
 
-- **Electron app** (`myapp8/app_src/`) = main UI with login, AI chat, settings, interview mode — already cross-platform
-- **Native overlay** = stealth binary that floats above proctoring apps, hidden from screen capture
-  - Windows: `hope.exe` (C++/DirectX11/ImGui) — already working
-  - macOS: `solvro-overlay.app` (Swift/Metal/AppKit) — THIS is what we're building
-- Electron's `launch-overlay-mode` IPC handler (`main.js:3442`) currently returns "Overlay mode is only available on Windows" on Mac — the gap to fill
-- Overlay binary lives in `overlay-mac-bin/solvro-overlay.app` as Electron `extraResources`
+```
+Electron App (app_src/) — already cross-platform
+    │
+    ├── Windows: launches hope.exe (C++/DX11/ImGui)
+    │
+    └── macOS: launches solvro-overlay (Swift/Metal/AppKit) ← THIS
+```
 
-## Key Technologies
+The Electron app handles: auth, AI chat, settings, interview mode, auto-update.
+The native overlay handles: stealth window, screen-capture hiding, kiosk bypass, hotkeys, AI queries, autotype.
 
-- **CGS Private APIs** via `dlsym`: `CGSSetWindowSharingState` (hide from screen capture), `CGSSetWindowLevel` (float above kiosk)
-- **NSPanel** with `.borderless`, `.nonactivatingPanel`, `.screenSaver` level, `canJoinAllSpaces`, `fullScreenAuxiliary`
-- **Metal**: `CAMetalLayer` + `CVDisplayLink` for vsync, clear-to-transparent render pass
-- **SwiftUI** hosted via `NSHostingView` on top of Metal layer
-- **Universal binary**: x86_64 + arm64 via `xcodebuild -arch x86_64 -arch arm64 ONLY_ACTIVE_ARCH=NO`
-- **Ad-hoc code signing**: `CODE_SIGN_IDENTITY="-"` (no Apple Developer ID yet)
-- **GitHub Actions**: `macos-latest` runners, public repo = unlimited free macOS minutes
-- **Solvro backend**: `solvro.in` API for auth, AI queries, STT, usage tracking, remote config
-- **Session token**: stored at `~/Library/Application Support/Solvro/solvro-token.txt`
+## Key Integration Points
+
+- **Electron → Overlay**: `main.js` spawns overlay binary, communicates via stdin/stdout JSON
+- **Session token**: `~/Library/Application Support/Solvro/solvro-token.txt`
+- **Backend API**: `solvro.in` — `/api/ai/query`, `/api/auth/desktop-refresh`, `/api/config`, `/api/ai/transcribe`
+- **extraResources**: `overlay-mac-bin/solvro-overlay.app` bundled in Electron DMG
+- **main.js line 3442**: currently blocks Mac with "Overlay mode is only available on Windows"
 
 ---
 
-## Phases
+## Implementation Status
 
-### Phase 1 — App Scaffold ✅
+- Phase 1: ✅ DONE
+- Phase 2: ✅ DONE
+- Phase 3: ✅ DONE
+- Phase 4: ✅ DONE (simplified — basic chat UI, not full TitleBar/ChatView/ComposerView yet)
+- Phase 5: ⏳ NOT DONE (Markdown & Code Highlighting — skipped, implemented hotkeys instead)
+- Phase 6: ⏳ IN PROGRESS
+- Phase 9: ✅ DONE (Global Hotkeys — implemented early as "Phase 5")
+
+**Note**: Phases 1-4 and 9 are done. Phase 5 (Markdown) was skipped — we implemented hotkeys (Phase 9) early. Continuing from Phase 6 onward.
+
+---
+
+## Phase 1: Xcode Project Scaffold & GitHub Actions CI ✅
+
+**Goal**: Empty Swift app that compiles as a universal binary on GitHub Actions.
+
 - `SolvroOverlay/App/main.swift` — entry point, `NSApplication.shared.run()`
-- `SolvroOverlay/App/AppDelegate.swift` — sets activation policy to `.accessory` (no dock icon), creates overlay
-- `SolvroOverlay.xcodeproj` — Xcode project, deployment target macOS 12.0, ad-hoc signed
+- `SolvroOverlay/App/AppDelegate.swift` — `LSUIElement=true`, no Dock icon
+- `SolvroOverlay.xcodeproj` — deployment target macOS 12.0, universal binary (x86_64 + arm64)
 - `SolvroOverlay.xcscheme` — shared build scheme
-- `Info.plist` — bundle ID `com.solvro.overlay`, `LSUIElement: true`
+- `Info.plist` — bundle ID `com.solvro.overlay`, `LSUIElement: true`, `NSScreenCaptureUsageDescription`
+- GitHub Actions: `build-overlay-mac.yml` + `ci.yml` at repo root
 
-### Phase 2 — Stealth Window & CGS Private APIs ✅
-- `SolvroOverlay/Overlay/CGSBridge.swift` — loads `CGSMainConnectionID`, `CGSSetWindowSharingState`, `CGSSetWindowLevel` via `dlsym`; `sharingNone = 0` hides from capture; window level `2_147_483_630`
-- `SolvroOverlay/Overlay/OverlayPanel.swift` — NSPanel subclass: borderless, nonactivating, `.screenSaver` level, `canJoinAllSpaces`, `fullScreenAuxiliary`, `sharingType = .none`, `isOpaque = false`, `backgroundColor = .clear`; `applyStealth()` on every `orderFront`
-- `SolvroOverlay/Overlay/OverlayWindowController.swift` — window lifecycle, opacity state machine (`currentOpacity`, `lastVisibleOpacity`, `isHidden`), `toggleVisibility()`, `adjustOpacity(delta:)`, `setOpacity(_:)`, `toggleClickThrough()`, `move(dx:dy:)`
+**Deliverable**: `solvro-overlay.app` universal binary that launches and immediately quits
 
-### Phase 3 — Metal Rendering Pipeline ✅
-- `SolvroOverlay/Rendering/Renderer.swift` — `MTLDevice`, `MTLCommandQueue`, per-frame clear-to-transparent render pass
-- `SolvroOverlay/Rendering/MetalView.swift` — `NSView` with `CAMetalLayer`, `CVDisplayLink` vsync callback, Retina `contentsScale` handling, `updateDrawableSize()` on resize
-- `OverlayWindowController` updated to use `MetalView` as content view with VM fallback
-- `project.pbxproj` — `Metal.framework`, `QuartzCore.framework` linked, Frameworks build phase
+## Phase 2: Stealth Overlay Window (NSPanel + CGS Private APIs) ✅
 
-### Phase 4 — SwiftUI UI Layer ✅
-- `SolvroOverlay/UI/OverlayContentView.swift` — chat-style UI: dark header ("Solvro" + status), scrollable message area with user/assistant bubbles, text input bar with send button, auto-scroll
-- `SolvroOverlay/UI/OverlayViewModel.swift` — `ObservableObject`: `@Published messages`, `inputText`, `isLoading`, `statusText`; `sendMessage()` placeholder; `clearMessages()`
-- `OverlayWindowController` updated: container `NSView` holds `MetalView` (bottom) + `NSHostingView<OverlayContentView>` (top)
+**Goal**: A floating, borderless panel hidden from screen capture.
 
-### Phase 5 — Global Hotkey Manager
-- `SolvroOverlay/Input/HotkeyManager.swift` — register global hotkeys via `NSEvent.addGlobalMonitorForEvents` and `addLocalMonitorForEvents`
-- Hotkey map (matching Windows overlay):
-  - `⌘Space` — toggle visibility
-  - `⌘↑` / `⌘↓` — adjust opacity ±10%
+- `SolvroOverlay/Overlay/OverlayPanel.swift` — custom NSPanel subclass:
+  - styleMask: `[.borderless, .nonactivatingPanel]`
+  - level: `.screenSaver` (floats above fullscreen apps)
+  - collectionBehavior: `[.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]`
+  - `isOpaque: false`, `backgroundColor: .clear`, `sharingType = .none`
+  - `applyStealth()` called on every `orderFront`/`makeKeyAndOrderFront`
+- `SolvroOverlay/Overlay/CGSBridge.swift` — CGS private API via `dlsym`:
+  - `CGSSetWindowSharingState(connection, windowNumber, kCGSWindowSharingNone)` — hides from capture
+  - `CGSSetWindowLevel(connection, windowNumber, 2_147_483_630)` — above kiosk windows
+  - `CGSMainConnectionID()` — connection handle
+- `SolvroOverlay/Overlay/OverlayWindowController.swift` — lifecycle, positioning, opacity state machine
+
+**Deliverable**: Transparent panel floating above all windows, invisible to screenshots/screen recording
+
+## Phase 3: Metal Rendering Pipeline ✅
+
+**Goal**: Hardware-accelerated rendering surface inside the overlay panel.
+
+- `SolvroOverlay/Rendering/Renderer.swift` — Metal device, command queue, clear-to-transparent render pass
+- `SolvroOverlay/Rendering/MetalView.swift` — NSView backed by CAMetalLayer, CVDisplayLink vsync, Retina scaling
+- `OverlayWindowController` updated to use MetalView with VM fallback
+
+**Deliverable**: Overlay panel with a Metal surface that clears to transparent each frame
+
+## Phase 4: SwiftUI View Hierarchy & App Chrome ✅ (simplified)
+
+**Goal**: Main UI layout matching the Windows version.
+
+**Done so far**:
+- `SolvroOverlay/UI/OverlayContentView.swift` — basic chat-style UI (header, message area, input bar)
+- `SolvroOverlay/UI/OverlayViewModel.swift` — ObservableObject with messages, input, loading state
+- `OverlayWindowController` hosts SwiftUI via NSHostingView on top of MetalView
+
+**Still needed for full Phase 4**:
+- `Views/TitleBar.swift` — draggable title bar with model selector, language selector, mode toggle, settings gear, minimize/close
+- `Views/ChatView.swift` — scrollable message transcript with markdown, code blocks, copy button
+- `Views/ComposerView.swift` — multi-line text field, send button, screenshot attach, voice input button
+- Dark theme matching Windows: `#1a1a2e` background, `#16213e` panels, accent colors
+
+## Phase 5: Markdown & Code Highlighting ⏳
+
+**Goal**: Rich rendering of AI responses with syntax highlighting.
+
+- `Views/MarkdownRenderer.swift` — parse markdown to attributed strings: headers, bold, italic, lists, links, inline code
+- `Views/CodeBlockView.swift` — fenced code blocks:
+  - Load `highlight.min.js` via JavaScriptCore
+  - Language detection from fence info string
+  - Copy-to-clipboard button, line numbers
+- Bundle `Resources/highlight.min.js`
+
+**Deliverable**: AI responses render with formatted markdown and syntax-highlighted code
+
+## Phase 6: Supabase Auth & Session Management ⏳
+
+**Goal**: Login flow reading the Electron app's session token.
+
+- `Auth/SessionManager.swift` — read session token from:
+  - `~/Library/Application Support/Solvro/solvro-token.txt` (Electron's userData)
+  - Fall back to `$TMPDIR/solvro-token.txt`
+- `Auth/AuthService.swift`:
+  - `GET /api/user/me` with session cookie → user profile
+  - `POST /api/auth/desktop-refresh` → token renewal
+  - `GET /api/user/settings` → remote settings (models, quotas)
+  - `GET /api/user/usage` → usage data
+- `Views/LoginView.swift` — shown when no valid token:
+  - "Open Solvro to log in" button (launches Electron app)
+  - Or standalone email/password form calling `/api/auth/desktop-login`
+- Session keep-alive timer (24h refresh)
+
+**Deliverable**: Overlay reads Electron's auth token, displays user profile, handles token refresh
+
+## Phase 7: AI Provider HTTP Client (Streaming)
+
+**Goal**: Send queries to the Solvro backend and stream responses.
+
+- `AI/AIClient.swift`:
+  - `POST /api/ai/query` — main AI endpoint
+  - SSE streaming via URLSession with httpBodyStream
+  - Request body: `{ model, language, messages[], screenshot?, timezone }`
+  - Headers: session cookie, `X-Client-Version`, `X-Client-Platform: macos`
+- `AI/ConversationManager.swift`:
+  - Message history (capped at 12 pairs, matching Windows)
+  - System prompt injection, context management
+- `AI/ModelCatalog.swift`:
+  - Fetch model list from `/api/config`
+  - Fallback hardcoded models, per-mode model pinning
+
+**Deliverable**: User can type a question, get a streaming AI response
+
+## Phase 8: Screenshot Capture (ScreenCaptureKit)
+
+**Goal**: Capture the screen beneath the overlay for AI context.
+
+- `Capture/ScreenCapture.swift`:
+  - `SCShareableContent` to enumerate displays
+  - `SCContentFilter` excluding the overlay window
+  - `SCStreamConfiguration` with max 1920px edge
+  - Single-frame capture → CGImage → PNG → base64
+- `NSScreenCaptureUsageDescription` in Info.plist
+- Permission request UI when first triggered
+
+**Deliverable**: Screenshot hotkey captures screen (excluding overlay) and attaches to AI query
+
+## Phase 9: Global Hotkeys (Carbon Events) ✅
+
+**Goal**: System-wide keyboard shortcuts matching Windows behavior.
+
+- `Input/HotkeyManager.swift` — NSEvent global + local monitors:
+  - `⌘Space` — toggle overlay visibility
+  - `⌘↑/↓` — adjust opacity ±10%
   - `⌘⇧C` — toggle click-through
-  - `⌘⇧←→↑↓` — move window by 50px
+  - `⌘⇧Arrow keys` — move window 50px
   - `⌘⇧Q` — quit overlay
-- Wire hotkeys to `OverlayWindowController` methods
+- Wired into `AppDelegate` on launch
 
-### Phase 6 — IPC / stdin Protocol
-- `SolvroOverlay/IPC/StdinReader.swift` — read JSON commands from stdin (Electron spawns overlay as child process)
-- `SolvroOverlay/IPC/IPCProtocol.swift` — define command types: `show`, `hide`, `setOpacity`, `sendQuery`, `quit`, `setToken`
-- `SolvroOverlay/IPC/StdoutWriter.swift` — write JSON responses to stdout (status, errors, AI responses)
-- Wire IPC commands to `OverlayWindowController` and `OverlayViewModel`
+**Still needed**:
+- Carbon `RegisterEventHotKey` API for true global hotkeys
+- `Input/KeyCaptureMonitor.swift` — CGEvent tap for global key capture mode
+- Read/write hotkey config to `~/Library/Application Support/Solvro/hotkeys.json`
+- Additional bindings: `⌘⏎` send query, `⌘⇧T` start auto-type, `⌘⇧S` screenshot
 
-### Phase 7 — Session Token & Auth
-- `SolvroOverlay/Network/TokenStore.swift` — read session token from `~/Library/Application Support/Solvro/solvro-token.txt` or receive via IPC
-- `SolvroOverlay/Network/AuthService.swift` — validate token with `solvro.in/api/auth/validate`, refresh if expired
-- Token refresh every 24h (matches Electron's `readSessionToken`/`writeSessionToken` flow)
+## Phase 10: Remote Config & Model Sync
 
-### Phase 8 — AI Service Integration
-- `SolvroOverlay/Network/AIService.swift` — POST to `solvro.in/api/ai/query` with session token
-- Wire `OverlayViewModel.sendMessage()` to real API calls
-- Streaming response support (SSE / chunked transfer)
-- Remote model config from `solvro.in/api/config`
-- Error handling: auth failures, rate limits, network errors
+**Goal**: Dynamic configuration from the Solvro backend.
 
-### Phase 9 — Speech-to-Text
-- `SolvroOverlay/Audio/AudioCaptureService.swift` — `AVAudioEngine` microphone capture
-- `SolvroOverlay/Audio/STTService.swift` — send audio buffers to `solvro.in/api/stt` or local Moonshine
-- `SolvroOverlay/UI/AudioIndicatorView.swift` — recording indicator in the UI
-- Hotkey: `⌘⇧M` — toggle microphone / start STT session
+- `Config/RemoteConfig.swift`:
+  - `GET /api/config` → model catalog, feature flags, force-update threshold
+  - Local cache with TTL
+  - `onChange` callback pattern
+- `Config/AppConfig.swift`:
+  - Local settings persistence (UserDefaults or JSON)
+  - Theme, default mode, language, opacity, window position
 
-### Phase 10 — Screenshot Capture
-- `SolvroOverlay/Capture/ScreenshotService.swift` — `CGWindowListCreateImage` excluding overlay's own window
-- Capture visible screen, encode as JPEG, send to AI service for vision queries
-- Hotkey: `⌘⇧S` — take screenshot and send to AI
-- Max 1920px edge (matches Electron's `screenshot.js`)
+## Phase 11: Settings Panel
 
-### Phase 11 — Remote Config
-- `SolvroOverlay/Network/RemoteConfigService.swift` — fetch `solvro.in/api/config` on launch and periodically
-- Feature flags, model catalog, endpoint URLs, rate limit parameters
-- Cache config locally at `~/Library/Application Support/Solvro/config.json`
+**Goal**: In-overlay settings UI matching Windows.
 
-### Phase 12 — Multi-Monitor & Resize
-- Screen change observer (`NSApplication.didChangeScreenParametersNotification`)
-- Move overlay to primary screen on display reconfiguration
-- User resize via drag edges (optional, panel defaults to left-docked full height)
-- `⌘⇧R` — reset position/size to default
+- `Views/SettingsView.swift`:
+  - Account info (email, plan, usage)
+  - Model selection, language selection (14 languages)
+  - Theme toggle, opacity slider
+  - Keyboard shortcuts editor
+  - Auto-type settings (CPS, jitter, delays)
+  - About/version info, logout button
+- `Views/ShortcutsEditor.swift`:
+  - Capture mode for recording new key combinations
+  - Conflict detection, reset to defaults
 
-### Phase 13 — Auto-Update
-- `SolvroOverlay/Update/UpdateChecker.swift` — check GitHub releases API for newer `solvro-overlay-mac` artifact
-- Download and replace binary, prompt user or auto-restart
-- Version comparison using `MARKETING_VERSION` from Info.plist
+## Phase 12: Auto-Type (CGEvent Keyboard Simulation)
 
-### Phase 14 — Drag Handle & Window Chrome
-- Custom drag region at top of overlay (since panel is borderless)
-- Subtle grab handle indicator
-- Optional resize handle at right edge
+**Goal**: Type AI-generated code into other apps with human-like timing.
 
-### Phase 15 — Animations & Transitions
-- Fade in/out on visibility toggle (animate `alphaValue`)
-- Smooth opacity transitions on `adjustOpacity`
-- Message bubble entry animations in SwiftUI
+- `AutoType/AutoTyper.swift`:
+  - CGEvent posting for keystroke simulation
+  - Configurable CPS (default 14), 45% jitter variance
+  - Think pauses between lines (45ms), line pauses (120ms)
+  - Start delay (1000ms countdown)
+- `AutoType/TypoSimulator.swift`:
+  - Random typo injection + backspace correction
+  - Smart indent handling, tab/space detection
+  - Pause/resume via hotkey (F8/Escape to stop, `⌘⇧Y` to resume)
+  - Progress indicator in overlay UI
 
-### Phase 16 — Error Handling & Logging
-- Structured logging with OSLog subsystem `com.solvro.overlay`
-- Crash-safe: catch uncaught exceptions, write crash log
-- Network error recovery with exponential backoff
-- User-facing error messages in the chat area
+## Phase 13: Voice Input & Audio Capture
 
-### Phase 17 — Settings Persistence
-- `SolvroOverlay/Settings/SettingsStore.swift` — UserDefaults or JSON file at `~/Library/Application Support/Solvro/overlay-settings.json`
-- Persist: last opacity, window position, click-through state, hotkey customization
-- Restore on launch
+**Goal**: Microphone input for voice queries and interview transcription.
 
-### Phase 18 — Markdown Rendering
-- Rich text rendering for AI responses (code blocks, bold, italic, lists)
-- Syntax highlighting for code blocks
-- Copy code block button
+- `Audio/AudioCapture.swift`:
+  - AVCaptureSession for microphone input
+  - WAV encoding for transcription endpoint
+  - `POST /api/ai/transcribe` (Gemini Flash)
+- `Audio/SystemAudioCapture.swift`:
+  - System audio loopback via AVAudioEngine tap
+  - For interview mode: capture interviewer's audio
+- Permission handling for `NSMicrophoneUsageDescription`
 
-### Phase 19 — Electron Integration (main.js)
-- Modify `main.js` `launch-overlay-mode` IPC handler (line 3442):
-  - Remove `if (process.platform !== 'win32') return ...` guard
-  - Add macOS branch: spawn `overlay-mac-bin/solvro-overlay.app/Contents/MacOS/solvro-overlay`
-  - Pass session token via stdin IPC
-  - Monitor child process health
-- Platform-specific overlay binary path resolution
+## Phase 14: Interview Mode
 
-### Phase 20 — electron-builder extraResources
-- `package.json` already has `overlay-mac-bin` in `extraResources` for mac
-- Verify `solvro-overlay.app` bundle is included in DMG/zip
-- Test that resource path resolves correctly at runtime
+**Goal**: Real-time interview assistance with dual-audio transcription.
 
-### Phase 21 — CI: Universal Binary Artifact
-- `.github/workflows/build-overlay-mac.yml` (already working) — builds universal binary, uploads artifact
-- Verify artifact contains both x86_64 + arm64 slices
-- Artifact name: `solvro-overlay-mac`
+- `Interview/InterviewManager.swift`:
+  - Deepgram WebSocket via `GET /api/keys/deepgram?profile=dual`
+  - Dual-socket mode: separate mic + system audio streams
+  - Real-time transcript display
+- `Views/InterviewView.swift`:
+  - Split view: transcript left, AI suggestions right
+  - Speaker identification (You vs Interviewer)
+  - "Assist" / "Force Answer" / "New Question" / "New Conversation" buttons
+  - Recording controls
+- `Interview/SttSession.swift`:
+  - WebSocket management with reconnection
 
-### Phase 22 — Release Workflow Integration
-- `myapp8/.github/workflows/release.yml` has `mac-overlay` job
-- Downloads `solvro-overlay-mac` artifact into `app_src/overlay-mac-bin/`
-- Electron build picks it up as extraResource
-- Full release: Windows + Mac Electron apps with embedded native overlays
+## Phase 15: Kiosk Bypass — ProctorInjector & GenericKioskBlocker
 
-### Phase 23 — End-to-End Testing
-- Test overlay launch from Electron on macOS
-- Test IPC command/response cycle
-- Test stealth: verify overlay is not visible in screen recordings
-- Test hotkeys in various app contexts (fullscreen, Spaces, kiosk apps)
+**Goal**: Bypass proctoring software lockdown on macOS.
 
-### Phase 24 — Performance Optimization
-- Metal render pass: skip frames when no UI changes (reduce GPU usage)
-- CVDisplayLink: drop to lower refresh rate when idle
-- Memory profiling: ensure no leaks in long-running sessions
-- Launch time optimization
+- `Stealth/ProctorInjector.swift`:
+  - Monitor for proctoring app launch via `NSWorkspace.shared.runningApplications`
+  - `task_for_pid` + `mach_vm_*` for dylib injection
+  - Swizzle `-[NSApplication setPresentationOptions:]` → no-op
+  - Swizzle `-[NSWindow setLevel:]` → clamped
+- `Stealth/GenericKioskBlocker.m` (Objective-C):
+  - `method_exchangeImplementations` runtime swizzling
+  - Block `NSRunningApplication.terminate` / kill
+  - Block `NSTask` launching security processes
+- `Stealth/helper.dylib` target — separate Mach-O
 
-### Phase 25 — Polish & Final QA
-- Visual polish: match Windows overlay appearance closely
-- Edge cases: lid close/open, sleep/wake, multiple users
-- Accessibility: VoiceOver hints (without exposing overlay to screen readers used by proctoring)
-- Final review of stealth properties across macOS versions (12-15)
-- Documentation for building and testing
+## Phase 16: Anti-Detection & Process Hiding
+
+**Goal**: Make the overlay undetectable to monitoring software.
+
+- `Stealth/ProcessHider.swift`:
+  - Executable named `uiserviced` (looks like system daemon)
+  - `setpriority`/`sched_setscheduler` to lower visibility
+  - Clear `argv[0]` to disguise in `ps` output
+- `Stealth/WindowHider.swift`:
+  - CGSSetWindowSharingState (Phase 2), randomized window server ID
+  - Hide from Accessibility API: `AXUIElementSetAttributeValue`
+- `Stealth/NetworkObfuscation.swift`:
+  - Route through Solvro backend (no direct OpenAI calls)
+  - User-Agent mimicking Safari/system processes
+
+## Phase 17: Opacity & Window Management
+
+**Goal**: Full window control matching Windows behavior.
+
+- `Overlay/WindowManager.swift`:
+  - Opacity slider (0.0–1.0) + hotkey ±10%
+  - Hide/show toggle, click-through toggle with forward
+  - Window movement via hotkeys, resize via edge drag strips
+  - Remember position/size across sessions
+  - Multi-display support
+
+## Phase 18: Version Check & Auto-Update
+
+**Goal**: Self-updating overlay binary.
+
+- `Update/UpdateManager.swift`:
+  - Check `GET /api/config` for `macOverlayVersion` and `forceUpdateBelow`
+  - Compare against `CFBundleShortVersionString`
+  - Download and replace app bundle
+- Optional Sparkle framework integration
+- Force-update support: block usage if version too old
+
+## Phase 19: Electron Integration — Mac Overlay Launch
+
+**Goal**: Wire the Electron app to launch the native Mac overlay.
+
+- Update `main.js` `launch-overlay-mode` (line 3442):
+  - Remove `if (process.platform !== 'win32')` guard
+  - Add macOS path: find `solvro-overlay` in `process.resourcesPath`
+  - Launch via `spawn` with `detached: true`
+  - Verify process is alive, then quit Electron
+- Update `package.json`: macOS `extraResources`
+- Update `build-overlay-mac.yml`: produce artifact
+- Update `release.yml`: download overlay artifact
+- Update `afterPack.js`: sign overlay alongside Electron
+
+## Phase 20: Installer & Distribution
+
+**Goal**: Complete macOS distribution.
+
+- `install.sh` update: download DMG, mount, copy to /Applications, permissions, clear quarantine
+- DMG customization: Solvro branding, drag-to-Applications
+- Gatekeeper: ad-hoc signing, `xattr -cr`, future Apple Developer ID + notarization
+
+## Phase 21: Chat History & Local Storage
+
+**Goal**: Persistent conversation history across sessions.
+
+- `Storage/ChatStorage.swift`:
+  - SQLite at `~/Library/Application Support/Solvro/chat.db`
+  - Tables: conversations, messages, screenshots
+  - Export/import
+- `Storage/SettingsStorage.swift`:
+  - JSON settings file, migration from Electron format
+
+## Phase 22: Theme System & UI Polish
+
+**Goal**: Pixel-perfect UI matching Windows version.
+
+- `Theme/ThemeManager.swift`:
+  - Dark theme: `#1a1a2e` background, `#16213e` panels
+  - Light theme, system theme following
+- Font matching: SF Pro for UI, SF Mono for code
+- Animations: message appear, streaming text, opacity transitions, panel slide
+- Scrollbar styling
+
+## Phase 23: Edge Cases & Platform Parity
+
+**Goal**: Handle all Mac-specific edge cases.
+
+- `Platform/PermissionManager.swift`:
+  - Screen Recording, Accessibility, Microphone, Automation permissions
+- `Platform/PowerManager.swift`:
+  - Prevent App Nap, sudden termination, handle sleep/wake
+- Mission Control / Spaces behavior
+- Retina display handling
+
+## Phase 24: Comprehensive Testing
+
+**Goal**: Verify feature parity with Windows.
+
+- Unit tests: auth, AI client, hotkey conflicts, auto-type timing, markdown
+- Integration tests: backend API, WebSocket STT, screenshot quality
+- Manual test matrix:
+  - macOS 12-15, Intel + Apple Silicon
+  - Proctoring software: Safe Exam Browser, Respondus LockDown, Proctorio, ProctorU, Honorlock
+  - Multi-display, Retina/non-Retina
+
+## Phase 25: Release Pipeline & Launch
+
+**Goal**: End-to-end release automation.
+
+- Final `release.yml`: tag → test → build overlay → build Electron → publish
+- Remove "Mac version coming soon" messaging
+- Backend: `GET /api/config` returns `macOverlayVersion`
+- Documentation: installation guide, troubleshooting
 
 ---
 
-## File Structure
+## File Structure (Final)
 
 ```
 overlay-mac/
 ├── SolvroOverlay.xcodeproj/
-│   ├── project.pbxproj
-│   └── xcshareddata/xcschemes/SolvroOverlay.xcscheme
+├── IMPLEMENTATION_PLAN.md
 └── SolvroOverlay/
     ├── Info.plist
     ├── App/
@@ -190,45 +389,64 @@ overlay-mac/
     ├── Overlay/
     │   ├── CGSBridge.swift
     │   ├── OverlayPanel.swift
-    │   └── OverlayWindowController.swift
+    │   ├── OverlayWindowController.swift
+    │   └── WindowManager.swift          (Phase 17)
     ├── Rendering/
     │   ├── Renderer.swift
     │   └── MetalView.swift
     ├── UI/
     │   ├── OverlayContentView.swift
     │   └── OverlayViewModel.swift
-    ├── Input/          (Phase 5)
-    │   └── HotkeyManager.swift
-    ├── IPC/            (Phase 6)
-    │   ├── StdinReader.swift
-    │   ├── IPCProtocol.swift
-    │   └── StdoutWriter.swift
-    ├── Network/        (Phase 7-8, 11)
-    │   ├── TokenStore.swift
-    │   ├── AuthService.swift
-    │   ├── AIService.swift
-    │   └── RemoteConfigService.swift
-    ├── Audio/          (Phase 9)
-    │   ├── AudioCaptureService.swift
-    │   └── STTService.swift
-    ├── Capture/        (Phase 10)
-    │   └── ScreenshotService.swift
-    ├── Settings/       (Phase 17)
-    │   └── SettingsStore.swift
-    ├── Update/         (Phase 13)
-    │   └── UpdateChecker.swift
+    ├── Views/                           (Phase 4 full, 5, 11)
+    │   ├── TitleBar.swift
+    │   ├── ChatView.swift
+    │   ├── ComposerView.swift
+    │   ├── MarkdownRenderer.swift
+    │   ├── CodeBlockView.swift
+    │   ├── LoginView.swift
+    │   ├── SettingsView.swift
+    │   ├── ShortcutsEditor.swift
+    │   └── InterviewView.swift
+    ├── Input/
+    │   ├── HotkeyManager.swift
+    │   └── KeyCaptureMonitor.swift      (Phase 9 full)
+    ├── Auth/                            (Phase 6)
+    │   ├── SessionManager.swift
+    │   └── AuthService.swift
+    ├── AI/                              (Phase 7)
+    │   ├── AIClient.swift
+    │   ├── ConversationManager.swift
+    │   └── ModelCatalog.swift
+    ├── Capture/                         (Phase 8)
+    │   └── ScreenCapture.swift
+    ├── Config/                          (Phase 10)
+    │   ├── RemoteConfig.swift
+    │   └── AppConfig.swift
+    ├── AutoType/                        (Phase 12)
+    │   ├── AutoTyper.swift
+    │   └── TypoSimulator.swift
+    ├── Audio/                           (Phase 13)
+    │   ├── AudioCapture.swift
+    │   └── SystemAudioCapture.swift
+    ├── Interview/                       (Phase 14)
+    │   ├── InterviewManager.swift
+    │   └── SttSession.swift
+    ├── Stealth/                         (Phase 15-16)
+    │   ├── ProctorInjector.swift
+    │   ├── GenericKioskBlocker.m
+    │   ├── ProcessHider.swift
+    │   ├── WindowHider.swift
+    │   └── NetworkObfuscation.swift
+    ├── Update/                          (Phase 18)
+    │   └── UpdateManager.swift
+    ├── Storage/                         (Phase 21)
+    │   ├── ChatStorage.swift
+    │   └── SettingsStorage.swift
+    ├── Theme/                           (Phase 22)
+    │   └── ThemeManager.swift
+    ├── Platform/                        (Phase 23)
+    │   ├── PermissionManager.swift
+    │   └── PowerManager.swift
     └── Resources/
+        └── highlight.min.js             (Phase 5)
 ```
-
-## CI Workflows
-
-- `.github/workflows/ci.yml` — builds overlay on every push (root-level, triggers on this repo)
-- `.github/workflows/build-overlay-mac.yml` — standalone build + artifact upload
-- `myapp8/.github/workflows/release.yml` — full release with `mac-overlay` job
-
-## Key Integration Points
-
-- **Electron → Overlay**: `main.js` spawns overlay binary, communicates via stdin/stdout JSON
-- **Session token**: Electron writes to `~/Library/Application Support/Solvro/solvro-token.txt`, overlay reads it
-- **Backend API**: `solvro.in/api/ai/query`, `solvro.in/api/auth/validate`, `solvro.in/api/config`, `solvro.in/api/stt`
-- **extraResources**: `overlay-mac-bin/solvro-overlay.app` bundled in Electron DMG
