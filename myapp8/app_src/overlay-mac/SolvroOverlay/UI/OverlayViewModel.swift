@@ -24,17 +24,26 @@ final class OverlayViewModel: ObservableObject {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
+        guard SessionManager.shared.isLoggedIn else {
+            statusText = "Please sign in via the Solvro app"
+            return
+        }
+
         let userMsg = ChatMessage(role: .user, text: trimmed, timestamp: Date())
         messages.append(userMsg)
         inputText = ""
         isLoading = true
         statusText = "Thinking..."
 
-        // Placeholder — Phase 8+ wires this to solvro.in/api/ai
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        ConversationManager.shared.addUserMessage(trimmed)
+
+        AIClient.shared.sendToAI(userPrompt: trimmed) { [weak self] response in
             guard let self else { return }
+            ConversationManager.shared.addAssistantMessage(response)
+            let assistantMsg = ChatMessage(role: .assistant, text: response, timestamp: Date())
+            self.messages.append(assistantMsg)
             self.isLoading = false
-            self.statusText = "Ready"
+            self.statusText = ModelCatalog.shared.currentModel?.displayName ?? "Ready"
         }
     }
 

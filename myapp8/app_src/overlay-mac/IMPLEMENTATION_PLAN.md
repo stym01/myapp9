@@ -30,10 +30,11 @@ The native overlay handles: stealth window, screen-capture hiding, kiosk bypass,
 - Phase 3: ✅ DONE
 - Phase 4: ✅ DONE (simplified — basic chat UI, not full TitleBar/ChatView/ComposerView yet)
 - Phase 5: ⏳ NOT DONE (Markdown & Code Highlighting — skipped, implemented hotkeys instead)
-- Phase 6: ⏳ IN PROGRESS
-- Phase 9: ✅ DONE (Global Hotkeys — implemented early as "Phase 5")
+- Phase 6: ✅ DONE (rewritten to match myapp5 — 5s polling, tier system, HttpSolvro headers)
+- Phase 7: ✅ DONE (AI Client — Gemini + Claude SSE, models, languages, conversation history)
+- Phase 9: ✅ DONE (Global Hotkeys — rewritten to match myapp5 key bindings)
 
-**Note**: Phases 1-4 and 9 are done. Phase 5 (Markdown) was skipped — we implemented hotkeys (Phase 9) early. Continuing from Phase 6 onward.
+**Note**: Phases 1-4, 6, 7, and 9 are done. Phase 5 (Markdown) was skipped. Next up: Phase 8 (Screenshot Capture).
 
 ---
 
@@ -106,42 +107,52 @@ The native overlay handles: stealth window, screen-capture hiding, kiosk bypass,
 
 **Deliverable**: AI responses render with formatted markdown and syntax-highlighted code
 
-## Phase 6: Supabase Auth & Session Management ⏳
+## Phase 6: Auth & Session Management (myapp5-aligned) ✅
 
-**Goal**: Login flow reading the Electron app's session token.
+**Goal**: Token-based auth matching myapp5's exact patterns.
 
-- `Auth/SessionManager.swift` — read session token from:
-  - `~/Library/Application Support/Solvro/solvro-token.txt` (Electron's userData)
-  - Fall back to `$TMPDIR/solvro-token.txt`
-- `Auth/AuthService.swift`:
-  - `GET /api/user/me` with session cookie → user profile
-  - `POST /api/auth/desktop-refresh` → token renewal
-  - `GET /api/user/settings` → remote settings (models, quotas)
-  - `GET /api/user/usage` → usage data
-- `Views/LoginView.swift` — shown when no valid token:
-  - "Open Solvro to log in" button (launches Electron app)
-  - Or standalone email/password form calling `/api/auth/desktop-login`
-- Session keep-alive timer (24h refresh)
+- `Auth/SessionManager.swift` — matches myapp5's token and tier system:
+  - Token search paths: `~/Library/Application Support/Solvro/cache/Solvro/solvro-token.txt`, legacy `solvro/` fallback, `$TMPDIR/` fallback
+  - `startup()` — matches myapp5 WinMain auto-login: read token → load cached tier → fetch tier/usage/config
+  - 5-second token file polling (matches myapp5's DYNAMIC TOKEN RE-READ every 5000ms)
+  - On token change: re-fetch tier/usage/config (matches myapp5's TokenSync logic)
+  - On token removal: sign out (matches myapp5's "token removed, user signed out")
+  - Tier caching to `solvro-tier-cache.txt` (matches myapp5 ReadCachedTier/WriteCachedTier)
+  - Cookie header: dual `next-auth.session-token` + `__Secure-next-auth.session-token`
+  - Timezone header: `UTC±N` matching myapp5's GetTimeZoneInformation
+  - NO desktop-login, NO desktop-refresh, NO 24h timer (matches myapp5: `[SUPABASE DISABLED]`)
+- `Auth/AuthService.swift` — matches myapp5's API helpers:
+  - `makeSolvroRequest()` — adds Cookie, Content-Type, x-solvro-platform: macos, x-timezone headers
+  - `fetchSolvroUserTier()` — 3x retry with backoff [0, 1500, 4000]ms, parses subscription.plan → tier 0/1/2
+  - `fetchSolvroUsage()` — parses monthly.meters + trial.meters
+  - `fetchSolvroAppConfig()` — GET /api/app-config (public, no auth)
 
-**Deliverable**: Overlay reads Electron's auth token, displays user profile, handles token refresh
+**Deliverable**: Overlay reads token from disk, polls every 5s, has full tier system matching myapp5
 
-## Phase 7: AI Provider HTTP Client (Streaming)
+## Phase 7: AI Provider HTTP Client (myapp5-aligned) ✅
 
-**Goal**: Send queries to the Solvro backend and stream responses.
+**Goal**: Send queries to the Solvro backend matching myapp5's exact API calls.
 
-- `AI/AIClient.swift`:
-  - `POST /api/ai/query` — main AI endpoint
-  - SSE streaming via URLSession with httpBodyStream
-  - Request body: `{ model, language, messages[], screenshot?, timezone }`
-  - Headers: session cookie, `X-Client-Version`, `X-Client-Platform: macos`
-- `AI/ConversationManager.swift`:
-  - Message history (capped at 12 pairs, matching Windows)
-  - System prompt injection, context management
-- `AI/ModelCatalog.swift`:
-  - Fetch model list from `/api/config`
-  - Fallback hardcoded models, per-mode model pinning
+- `AI/AIClient.swift` — matches myapp5's SendToAI, SendToGeminiSolvro, SendToClaudeSolvro:
+  - Routes to `/api/ai/gemini` or `/api/ai/claude` based on model ID prefix
+  - SSE response parsing matching myapp5's exact line-by-line parser
+  - Gemini: contents array format, thinking config for pro models
+  - Claude: Anthropic messages format, base64 image support, content_block_delta parsing
+  - All requests use HttpSolvro headers (Cookie, x-solvro-platform, x-timezone)
+  - System prompt matching myapp5's GetCodingPrompt and general prompt
+  - Refreshes usage after each request (matches myapp5)
+- `AI/ConversationManager.swift` — matches myapp5 chat history:
+  - Message history capped at 12 pairs (24 messages)
+  - buildHistoryForAPI() maps "model" role → "assistant" (matches myapp5)
+  - Message count tracking for quota enforcement
+- `AI/ModelCatalog.swift` — matches myapp5 model + language catalogs:
+  - 5 default models with tier gating (Flash=0, Pro=1, Claude=2)
+  - 14 languages matching myapp5's InitSolvroLanguages
+  - cycleModel() skips models above user's tier (matches myapp5)
+  - updateModels() for server-driven model list from /api/app-config
+- OverlayViewModel.sendMessage() now wired to AIClient
 
-**Deliverable**: User can type a question, get a streaming AI response
+**Deliverable**: User can type a question and get an AI response from Solvro backend
 
 ## Phase 8: Screenshot Capture (ScreenCaptureKit)
 
@@ -157,23 +168,28 @@ The native overlay handles: stealth window, screen-capture hiding, kiosk bypass,
 
 **Deliverable**: Screenshot hotkey captures screen (excluding overlay) and attaches to AI query
 
-## Phase 9: Global Hotkeys (Carbon Events) ✅
+## Phase 9: Global Hotkeys (myapp5-aligned) ✅
 
-**Goal**: System-wide keyboard shortcuts matching Windows behavior.
+**Goal**: System-wide keyboard shortcuts matching myapp5's Windows bindings.
 
 - `Input/HotkeyManager.swift` — NSEvent global + local monitors:
-  - `⌘Space` — toggle overlay visibility
-  - `⌘↑/↓` — adjust opacity ±10%
-  - `⌘⇧C` — toggle click-through
-  - `⌘⇧Arrow keys` — move window 50px
-  - `⌘⇧Q` — quit overlay
+  - `⌘Space` — toggle overlay visibility (myapp5: Ctrl+Space)
+  - `⌘⇧[` — decrease opacity (myapp5: Ctrl+Shift+[)
+  - `⌘⇧]` — increase opacity (myapp5: Ctrl+Shift+])
+  - `⌘⇧Arrow keys` — move window 50px (myapp5: Ctrl+Shift+Arrows)
+  - `⌘Enter` — send message (myapp5: Ctrl+Enter)
+  - `⌘R` — reset chat (myapp5: Ctrl+R)
+  - `⌘⇧S` — screenshot stub (myapp5: Ctrl+Shift+S)
+  - `⌘⇧L` — cycle language stub (myapp5: Ctrl+Shift+L)
+  - `⌘⇧M` — cycle model stub (myapp5: Ctrl+Shift+M)
+  - `⌘⇧Q` — quit overlay (myapp5: Ctrl+Shift+Q)
 - Wired into `AppDelegate` on launch
 
 **Still needed**:
 - Carbon `RegisterEventHotKey` API for true global hotkeys
 - `Input/KeyCaptureMonitor.swift` — CGEvent tap for global key capture mode
 - Read/write hotkey config to `~/Library/Application Support/Solvro/hotkeys.json`
-- Additional bindings: `⌘⏎` send query, `⌘⇧T` start auto-type, `⌘⇧S` screenshot
+- `⌘⇧T` start auto-type, `⌘⇧W` inspect (Phase 12+)
 
 ## Phase 10: Remote Config & Model Sync
 
