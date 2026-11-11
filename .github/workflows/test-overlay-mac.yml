@@ -101,9 +101,10 @@ jobs:
           echo "Raw CGSBridge log: $LEVEL_LINE"
 
           if [ -n "$LEVEL_LINE" ]; then
-            # Format: CGSSetWindowLevel(connID, windowID, level) = result
-            # Extract the level value (third number in the parentheses)
-            OVERLAY_LEVEL=$(echo "$LEVEL_LINE" | grep -oE '[0-9]+' | sed -n '3p')
+            # Format: ... [CGSBridge] CGSSetWindowLevel(connID, windowID, level) = result
+            # Extract the level from inside the parentheses (third comma-separated value)
+            PARENS=$(echo "$LEVEL_LINE" | grep -oE 'CGSSetWindowLevel\([^)]+\)' | grep -oE '\([^)]+\)' | tr -d '()')
+            OVERLAY_LEVEL=$(echo "$PARENS" | tr ',' '\n' | sed -n '3p' | tr -d ' ')
             echo ""
             echo "  Overlay window level: $OVERLAY_LEVEL"
             echo ""
