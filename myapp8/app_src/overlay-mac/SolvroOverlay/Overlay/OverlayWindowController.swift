@@ -5,6 +5,8 @@ import Cocoa
 final class OverlayWindowController {
 
     private(set) var panel: OverlayPanel?
+    private(set) var renderer: Renderer?
+    private(set) var metalView: MetalView?
 
     // Opacity state — mirrors the Windows Electron app's logic
     private var currentOpacity: CGFloat = 1.0
@@ -29,14 +31,25 @@ final class OverlayWindowController {
 
         let overlay = OverlayPanel(contentRect: panelRect)
 
-        // Placeholder content — a dark semi-transparent background so we can
-        // visually confirm the window is alive. Replaced by Metal / SwiftUI
-        // in later phases.
-        let placeholder = NSView(frame: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight))
-        placeholder.wantsLayer = true
-        placeholder.layer?.backgroundColor = NSColor(red: 0.102, green: 0.102, blue: 0.180, alpha: 0.85).cgColor
-        placeholder.layer?.cornerRadius = 0
-        overlay.contentView = placeholder
+        // Metal rendering surface — clears to transparent each frame so the
+        // overlay composites cleanly over the desktop. SwiftUI views will be
+        // added as a subview on top in Phase 4.
+        let viewFrame = NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight)
+        if let r = Renderer() {
+            self.renderer = r
+            let mv = MetalView(frame: viewFrame, renderer: r)
+            mv.autoresizingMask = [.width, .height]
+            overlay.contentView = mv
+            self.metalView = mv
+            NSLog("[OverlayWindowController] Metal rendering active")
+        } else {
+            // Fallback: plain dark view if Metal is unavailable (e.g. VM)
+            let placeholder = NSView(frame: viewFrame)
+            placeholder.wantsLayer = true
+            placeholder.layer?.backgroundColor = NSColor(red: 0.102, green: 0.102, blue: 0.180, alpha: 0.85).cgColor
+            overlay.contentView = placeholder
+            NSLog("[OverlayWindowController] Metal unavailable, using fallback view")
+        }
 
         overlay.alphaValue = currentOpacity
         overlay.orderFront(nil)

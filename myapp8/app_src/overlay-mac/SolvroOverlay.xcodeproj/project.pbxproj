@@ -12,6 +12,10 @@
 		A10000030000000000000003 /* CGSBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000050000000000000005 /* CGSBridge.swift */; };
 		A10000040000000000000004 /* OverlayPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000060000000000000006 /* OverlayPanel.swift */; };
 		A10000050000000000000005 /* OverlayWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000070000000000000007 /* OverlayWindowController.swift */; };
+		A10000060000000000000006 /* Renderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000080000000000000008 /* Renderer.swift */; };
+		A10000070000000000000007 /* MetalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000090000000000000009 /* MetalView.swift */; };
+		A10000080000000000000008 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2000000A00000000000000A /* Metal.framework */; };
+		A10000090000000000000009 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2000000B00000000000000B /* QuartzCore.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,6 +26,10 @@
 		A20000050000000000000005 /* CGSBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CGSBridge.swift; sourceTree = "<group>"; };
 		A20000060000000000000006 /* OverlayPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayPanel.swift; sourceTree = "<group>"; };
 		A20000070000000000000007 /* OverlayWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayWindowController.swift; sourceTree = "<group>"; };
+		A20000080000000000000008 /* Renderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Renderer.swift; sourceTree = "<group>"; };
+		A20000090000000000000009 /* MetalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalView.swift; sourceTree = "<group>"; };
+		A2000000A00000000000000A /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		A2000000B00000000000000B /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -30,6 +38,7 @@
 			children = (
 				A30000020000000000000002 /* SolvroOverlay */,
 				A30000050000000000000005 /* Products */,
+				A30000080000000000000008 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -38,6 +47,7 @@
 			children = (
 				A30000030000000000000003 /* App */,
 				A30000060000000000000006 /* Overlay */,
+				A30000070000000000000007 /* Rendering */,
 				A30000040000000000000004 /* Resources */,
 				A20000030000000000000003 /* Info.plist */,
 			);
@@ -78,6 +88,24 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		A30000070000000000000007 /* Rendering */ = {
+			isa = PBXGroup;
+			children = (
+				A20000080000000000000008 /* Renderer.swift */,
+				A20000090000000000000009 /* MetalView.swift */,
+			);
+			path = Rendering;
+			sourceTree = "<group>";
+		};
+		A30000080000000000000008 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000A00000000000000A /* Metal.framework */,
+				A2000000B00000000000000B /* QuartzCore.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -86,6 +114,7 @@
 			buildConfigurationList = A60000010000000000000001 /* Build configuration list for PBXNativeTarget "SolvroOverlay" */;
 			buildPhases = (
 				A50000010000000000000001 /* Sources */,
+				A50000020000000000000002 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -134,10 +163,24 @@
 				A10000030000000000000003 /* CGSBridge.swift in Sources */,
 				A10000040000000000000004 /* OverlayPanel.swift in Sources */,
 				A10000050000000000000005 /* OverlayWindowController.swift in Sources */,
+				A10000060000000000000006 /* Renderer.swift in Sources */,
+				A10000070000000000000007 /* MetalView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A50000020000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000080000000000000008 /* Metal.framework in Frameworks */,
+				A10000090000000000000009 /* QuartzCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
 		B10000010000000000000001 /* Debug */ = {
