@@ -1,0 +1,55 @@
+name: Release macOS Overlay
+
+on:
+  push:
+    tags:
+      - 'overlay-mac-v*'
+
+jobs:
+  build-and-release:
+    name: Build & Release
+    runs-on: macos-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: xcodebuild -version
+
+      - name: Build Release (universal)
+        working-directory: ./myapp8/app_src/overlay-mac
+        run: |
+          xcodebuild \
+            -project SolvroOverlay.xcodeproj \
+            -scheme SolvroOverlay \
+            -configuration Release \
+            -arch x86_64 -arch arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="-" \
+            build
+
+      - name: Locate app bundle
+        id: locate
+        run: |
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "solvro-overlay.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: solvro-overlay.app not found"
+            exit 1
+          fi
+          echo "app_path=$APP_PATH" >> "$GITHUB_OUTPUT"
+          lipo -info "$APP_PATH/Contents/MacOS/solvro-overlay"
+
+      - name: Create ZIP archive
+        run: |
+          mkdir -p release
+          cp -R "${{ steps.locate.outputs.app_path }}" release/solvro-overlay.app
+          cd release
+          zip -r ../solvro-overlay-mac.zip solvro-overlay.app
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: solvro-overlay-mac.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

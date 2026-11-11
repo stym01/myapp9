@@ -3,14 +3,21 @@ import SwiftUI
 struct OverlayContentView: View {
 
     @ObservedObject var viewModel: OverlayViewModel
+    @State private var showSettings = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            headerBar
-            Divider().background(Color.white.opacity(0.15))
-            chatArea
-            Divider().background(Color.white.opacity(0.15))
-            inputBar
+        ZStack {
+            if showSettings {
+                SettingsView(viewModel: viewModel, isPresented: $showSettings)
+            } else {
+                VStack(spacing: 0) {
+                    headerBar
+                    Divider().background(Color.white.opacity(0.15))
+                    chatArea
+                    Divider().background(Color.white.opacity(0.15))
+                    inputBar
+                }
+            }
         }
         .background(Color(nsColor: NSColor(red: 0.08, green: 0.08, blue: 0.14, alpha: 0.92)))
     }
@@ -49,6 +56,13 @@ struct OverlayContentView: View {
                 .font(.system(size: 11))
                 .foregroundColor(.white.opacity(0.5))
                 .lineLimit(1)
+
+            Button(action: { showSettings.toggle() }) {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 13))
+                    .foregroundColor(.white.opacity(0.4))
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -99,18 +113,49 @@ struct OverlayContentView: View {
     private func messageBubble(_ msg: OverlayViewModel.ChatMessage) -> some View {
         HStack {
             if msg.role == .user { Spacer(minLength: 60) }
-            Text(msg.text)
-                .font(.system(size: 13))
-                .foregroundColor(.white.opacity(0.9))
+
+            if msg.role == .user {
+                Text(msg.text)
+                    .font(.system(size: 13))
+                    .foregroundColor(.white.opacity(0.9))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color(nsColor: NSColor(red: 0.20, green: 0.36, blue: 0.85, alpha: 0.7)))
+                    )
+                    .textSelection(.enabled)
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(MarkdownParser.parse(msg.text)) { segment in
+                        switch segment {
+                        case .text(let content):
+                            Text(content)
+                                .font(.system(size: 13))
+                                .foregroundColor(.white.opacity(0.9))
+                        case .code(let content, _):
+                            Text(content)
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(Color(nsColor: NSColor(red: 0.6, green: 0.9, blue: 0.6, alpha: 1.0)))
+                                .padding(10)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color(nsColor: NSColor(red: 0.05, green: 0.05, blue: 0.1, alpha: 0.9)))
+                                )
+                                .textSelection(.enabled)
+                        }
+                    }
+                }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(msg.role == .user
-                              ? Color(nsColor: NSColor(red: 0.20, green: 0.36, blue: 0.85, alpha: 0.7))
-                              : Color.white.opacity(0.08))
+                        .fill(Color.white.opacity(0.08))
                 )
                 .textSelection(.enabled)
+            }
+
             if msg.role == .assistant { Spacer(minLength: 60) }
         }
     }

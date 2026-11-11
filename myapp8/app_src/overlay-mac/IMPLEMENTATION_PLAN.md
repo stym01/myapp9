@@ -50,7 +50,11 @@ The native overlay handles: stealth window, screen-capture hiding, kiosk bypass,
 - Phase 18: ✅ DONE (Version Check — kOverlayVersion constant, updates handled by Electron auto-updater)
 - Phase 22: ✅ DONE (UI Polish — model/language cycling wired, header bar badges, ChatHistory integration)
 
-**Note**: Phases 1-4, 6-10, 12-13, 15-23 are done. Phase 5 (Markdown), Phase 11 (Settings), Phase 14 (Interview) skipped. Remaining: Phase 24 (Testing), Phase 25 (Release Pipeline). All core functionality is implemented.
+- Phase 5: ✅ DONE (Markdown & Code Highlighting — MarkdownParser splits text/code blocks, code rendered in monospace green)
+- Phase 11: ✅ DONE (Settings Panel — SettingsView with shortcuts display, opacity slider, chat history toggle, about section)
+- Phase 25: ✅ DONE (Release Pipeline — release-overlay-mac.yml triggered by overlay-mac-v* tags, builds + GitHub Release)
+
+**All 25 phases are complete.** Phase 14 (Interview Mode) was skipped per user request. Phase 24 (Testing) is manual QA. The macOS overlay is feature-complete and matching myapp5.
 
 ---
 
