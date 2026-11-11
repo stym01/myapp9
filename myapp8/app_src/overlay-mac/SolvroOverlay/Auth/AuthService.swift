@@ -160,6 +160,13 @@ final class AuthService {
 
             do {
                 guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+
+                if let models = json["models"] as? [[String: Any]], !models.isEmpty {
+                    DispatchQueue.main.async {
+                        ModelCatalog.shared.updateModels(from: models)
+                    }
+                }
+
                 NSLog("[AuthService] app-config fetched: %d keys", json.count)
             } catch {}
         }.resume()

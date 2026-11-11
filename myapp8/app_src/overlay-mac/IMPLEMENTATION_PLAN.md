@@ -34,8 +34,9 @@ The native overlay handles: stealth window, screen-capture hiding, kiosk bypass,
 - Phase 7: ✅ DONE (AI Client — Gemini + Claude SSE, models, languages, conversation history)
 - Phase 8: ✅ DONE (Screenshot Capture — ScreenCaptureKit + CGWindow fallback)
 - Phase 9: ✅ DONE (Global Hotkeys — rewritten to match myapp5 key bindings)
+- Phase 10: ✅ DONE (Remote Config — app-config updates ModelCatalog, AppConfig persistence)
 
-**Note**: Phases 1-4, 6-9 are done. Phase 5 (Markdown) was skipped. Next up: Phase 10 (Remote Config & Model Sync).
+**Note**: Phases 1-4, 6-10 are done. Phase 5 (Markdown) was skipped. Next up: Phase 11 (Settings Panel).
 
 ---
 
