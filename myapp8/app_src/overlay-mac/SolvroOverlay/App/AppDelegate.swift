@@ -1,5 +1,7 @@
 import Cocoa
 
+let kOverlayVersion = "1.0.0"
+
 class AppDelegate: NSObject, NSApplicationDelegate {
 
     let overlayController = OverlayWindowController()
@@ -49,7 +51,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         hk.start()
         self.hotkeyManager = hk
 
-        NSLog("[SolvroOverlay] overlay is live, hotkeys active")
+        NSLog("[SolvroOverlay] v%@ overlay is live, hotkeys active", kOverlayVersion)
     }
 
     func applicationWillTerminate(_ notification: Notification) {

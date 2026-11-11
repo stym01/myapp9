@@ -47,9 +47,10 @@ The native overlay handles: stealth window, screen-capture hiding, kiosk bypass,
 - Phase 21: ✅ DONE (Chat History — file-based saving to Desktop/Solvro-chat-history/{date}/)
 - Phase 23: ✅ DONE (Edge Cases — PermissionsHelper for Accessibility/ScreenRecording/Mic, sleep prevention)
 
+- Phase 18: ✅ DONE (Version Check — kOverlayVersion constant, updates handled by Electron auto-updater)
 - Phase 22: ✅ DONE (UI Polish — model/language cycling wired, header bar badges, ChatHistory integration)
 
-**Note**: Phases 1-4, 6-10, 12-13, 15-17, 19-23 are done. Phase 5 (Markdown), Phase 11 (Settings), Phase 14 (Interview) skipped. Remaining: Phase 18 (Version Check), Phase 24 (Testing), Phase 25 (Release Pipeline).
+**Note**: Phases 1-4, 6-10, 12-13, 15-23 are done. Phase 5 (Markdown), Phase 11 (Settings), Phase 14 (Interview) skipped. Remaining: Phase 24 (Testing), Phase 25 (Release Pipeline). All core functionality is implemented.
 
 ---
 
