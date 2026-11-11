@@ -7,6 +7,8 @@ final class OverlayViewModel: ObservableObject {
     @Published var inputText: String = ""
     @Published var isLoading: Bool = false
     @Published var statusText: String = "Ready"
+    @Published var modelName: String = ""
+    @Published var languageName: String = ""
 
     struct ChatMessage: Identifiable {
         let id = UUID()
@@ -47,6 +49,7 @@ final class OverlayViewModel: ObservableObject {
             self.messages.append(assistantMsg)
             self.isLoading = false
             self.statusText = ModelCatalog.shared.currentModel?.displayName ?? "Ready"
+            ChatHistory.shared.saveEntry(question: trimmed, response: response, screenshots: screenshots)
         }
     }
 
@@ -56,6 +59,26 @@ final class OverlayViewModel: ObservableObject {
         isLoading = false
         statusText = "Ready"
         NSLog("[OverlayViewModel] chat reset")
+    }
+
+    func cycleModel() {
+        let catalog = ModelCatalog.shared
+        catalog.cycleModel()
+        let name = catalog.currentModel?.displayName ?? "Unknown"
+        modelName = name
+        statusText = "Model: \(name)"
+        AppConfig.shared.selectedModelIndex = catalog.selectedModelIndex
+        NSLog("[OverlayViewModel] model → %@", name)
+    }
+
+    func cycleLanguage() {
+        let catalog = ModelCatalog.shared
+        catalog.cycleLanguage()
+        let lang = catalog.currentLanguage.displayName
+        languageName = lang
+        statusText = "Language: \(lang)"
+        AppConfig.shared.selectedLanguageIndex = catalog.selectedLanguageIndex
+        NSLog("[OverlayViewModel] language → %@", lang)
     }
 
     func clearMessages() {

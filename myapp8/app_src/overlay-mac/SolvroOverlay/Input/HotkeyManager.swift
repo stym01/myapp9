@@ -90,13 +90,13 @@ final class HotkeyManager {
 
         // ⌘⇧L (keyCode 37) — cycle language (myapp5: Ctrl+Shift+L)
         if cmd && shift && key == 37 {
-            NSLog("[HotkeyManager] cycle language (not yet implemented)")
+            controller.viewModel.cycleLanguage()
             return
         }
 
         // ⌘⇧M (keyCode 46) — cycle model (myapp5: Ctrl+Shift+M)
         if cmd && shift && key == 46 {
-            NSLog("[HotkeyManager] cycle model (not yet implemented)")
+            controller.viewModel.cycleModel()
             return
         }
 

@@ -23,11 +23,32 @@ struct OverlayContentView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(.white)
 
+            if !viewModel.modelName.isEmpty {
+                Text(viewModel.modelName)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.white.opacity(0.4))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.white.opacity(0.08))
+                    .cornerRadius(4)
+            }
+
+            if !viewModel.languageName.isEmpty {
+                Text(viewModel.languageName)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.white.opacity(0.4))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.white.opacity(0.08))
+                    .cornerRadius(4)
+            }
+
             Spacer()
 
             Text(viewModel.statusText)
                 .font(.system(size: 11))
                 .foregroundColor(.white.opacity(0.5))
+                .lineLimit(1)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
