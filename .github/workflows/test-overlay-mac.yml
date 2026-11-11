@@ -19,12 +19,8 @@ jobs:
         run: |
           echo "macOS version:"
           sw_vers
-          echo ""
-          echo "Xcode version:"
+          echo "Xcode:"
           xcodebuild -version
-          echo ""
-          echo "Metal support:"
-          system_profiler SPDisplaysDataType 2>/dev/null | head -30 || echo "No display info"
 
       - name: Build Release
         working-directory: ./myapp8/app_src/overlay-mac
@@ -36,15 +32,14 @@ jobs:
             -arch arm64 \
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_IDENTITY="-" \
-            build 2>&1 | tail -20
+            build 2>&1 | tail -5
 
       - name: Locate app bundle
         id: locate
         run: |
           APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "solvro-overlay.app" -type d | head -1)
           echo "app_path=$APP_PATH" >> "$GITHUB_OUTPUT"
-          echo "App found at: $APP_PATH"
-          file "$APP_PATH/Contents/MacOS/solvro-overlay"
+          echo "App: $APP_PATH"
           lipo -info "$APP_PATH/Contents/MacOS/solvro-overlay"
 
       - name: Create mock token file
@@ -52,42 +47,138 @@ jobs:
           mkdir -p ~/Desktop
           echo "mock-test-token-for-ci" > ~/Desktop/solvro-token.txt
 
-      - name: Launch other apps first (Safari, TextEdit, Finder window)
+      - name: Build window-level checker tool
+        run: |
+          cat > /tmp/check_windows.swift << 'SWIFTEOF'
+          import Cocoa
+          import CoreGraphics
+
+          let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+
+          print("Total on-screen windows: \(windows.count)")
+          print("")
+          print(String(format: "%-28s %-35s %-12s %-8s %s", "Owner", "Name", "Level", "WID", "Sharing"))
+          print(String(repeating: "=", count: 110))
+
+          var overlayLevel: Int = -1
+          var overlayWID: Int = -1
+          var overlaySharingState: Int = -1
+          var maxAppLevel: Int = 0
+          var maxAppName: String = ""
+
+          let normalApps = Set(["Safari", "TextEdit", "Finder", "Google Chrome", "Firefox",
+                                "Safe Exam Browser", "SEB", "zoom.us", "Zoom"])
+
+          for w in windows {
+              let owner = w["kCGWindowOwnerName"] as? String ?? "?"
+              let name = w["kCGWindowName"] as? String ?? "(untitled)"
+              let level = w["kCGWindowLayer"] as? Int ?? 0
+              let wid = w["kCGWindowNumber"] as? Int ?? 0
+              let sharing = w["kCGWindowSharingState"] as? Int ?? -1
+
+              let sharingLabel: String
+              switch sharing {
+              case 0: sharingLabel = "none"
+              case 1: sharingLabel = "read-only"
+              case 2: sharingLabel = "read-write"
+              default: sharingLabel = "unknown(\(sharing))"
+              }
+
+              let marker: String
+              if owner.lowercased().contains("solvro") {
+                  marker = " ◄◄◄ OVERLAY"
+                  overlayLevel = level
+                  overlayWID = wid
+                  overlaySharingState = sharing
+              } else if normalApps.contains(owner) {
+                  marker = " ◄ APP"
+                  if level > maxAppLevel {
+                      maxAppLevel = level
+                      maxAppName = owner
+                  }
+              } else {
+                  marker = ""
+              }
+
+              print(String(format: "%-28s %-35s %-12d %-8d %s%s", owner, name, level, wid, sharingLabel, marker))
+          }
+
+          print("")
+          print(String(repeating: "=", count: 60))
+          print("  OVERLAY vs OTHER APPS — WINDOW LEVEL COMPARISON")
+          print(String(repeating: "=", count: 60))
+
+          guard overlayLevel >= 0 else {
+              print("❌ FAIL: No overlay window found on screen!")
+              exit(1)
+          }
+
+          print("  Overlay window level:  \(overlayLevel)  (wid=\(overlayWID))")
+          print("  Highest app level:     \(maxAppLevel)  (\(maxAppName.isEmpty ? "system" : maxAppName))")
+          print("  Normal window level:   0")
+          print("")
+
+          // SEB (Safe Exam Browser) uses kCGScreenSaverWindowLevel (1000) or kCGMaximumWindowLevel
+          // Our overlay sets level = CGWindowLevelForKey(.maximumWindow) + 1 = 2147483632
+          // This is intentionally above everything including SEB
+          let sebLevel = 1000  // kCGScreenSaverWindowLevel — where SEB typically sits
+          print("  Reference levels:")
+          print("    Normal apps (Chrome, Safari):  0")
+          print("    Floating panels:               3")
+          print("    Modal panels:                  8")
+          print("    Screen saver (SEB level):      \(sebLevel)")
+          print("    Our overlay:                   \(overlayLevel)")
+          print("")
+
+          if overlayLevel > maxAppLevel {
+              print("  ✅ PASS: Overlay (level \(overlayLevel)) is ABOVE all on-screen apps (max \(maxAppLevel))")
+          } else {
+              print("  ❌ FAIL: Overlay (level \(overlayLevel)) is NOT above apps (max \(maxAppLevel))")
+              exit(1)
+          }
+
+          if overlayLevel > sebLevel {
+              print("  ✅ PASS: Overlay (level \(overlayLevel)) is ABOVE Safe Exam Browser level (\(sebLevel))")
+          } else {
+              print("  ❌ FAIL: Overlay would NOT survive SEB (level \(sebLevel))")
+              exit(1)
+          }
+
+          print("")
+          print(String(repeating: "=", count: 60))
+          print("  STEALTH CHECK — SCREEN CAPTURE VISIBILITY")
+          print(String(repeating: "=", count: 60))
+
+          if overlaySharingState == 0 {
+              print("  ✅ PASS: Overlay sharing state = none (invisible to screen capture)")
+          } else if overlaySharingState == 1 {
+              print("  ⚠️  Overlay sharing state = read-only")
+          } else {
+              print("  ⚠️  Overlay sharing state = \(overlaySharingState)")
+          }
+
+          print("")
+          print("🏁 All window-level checks passed")
+          exit(0)
+          SWIFTEOF
+
+          swiftc /tmp/check_windows.swift -o /tmp/check_windows -framework Cocoa -framework CoreGraphics
+          echo "Window checker compiled"
+
+      - name: Launch Safari and TextEdit
         run: |
           echo "=== Launching Safari ==="
-          open -a Safari https://www.example.com &
-          sleep 3
+          open -a Safari https://www.example.com || echo "Safari launch returned non-zero (may still open)"
+          sleep 4
 
           echo "=== Launching TextEdit ==="
-          open -a TextEdit &
-          sleep 2
+          open -a TextEdit || echo "TextEdit launch returned non-zero"
+          sleep 3
 
-          echo "=== Opening a Finder window ==="
-          open ~/Desktop &
-          sleep 2
+          echo "=== Apps launched ==="
+          ps aux | grep -E "Safari|TextEdit" | grep -v grep || echo "(no matching processes)"
 
-          echo "=== All background apps launched ==="
-          echo ""
-          echo "Current window list BEFORE overlay:"
-          python3 -c "
-          import Quartz
-          windows = Quartz.CGWindowListCopyWindowInfo(
-              Quartz.kCGWindowListOptionOnScreenOnly,
-              Quartz.kCGNullWindowID
-          )
-          print(f'Total on-screen windows: {len(windows)}')
-          print('')
-          print(f'{\"Owner\":<30} {\"Name\":<40} {\"Level\":<15} {\"Layer\":<8}')
-          print('-' * 95)
-          for w in windows:
-              owner = w.get('kCGWindowOwnerName', '?')
-              name = w.get('kCGWindowName', '(untitled)')
-              level = w.get('kCGWindowLayer', 0)
-              wid = w.get('kCGWindowNumber', 0)
-              print(f'{str(owner):<30} {str(name):<40} {str(level):<15} wid={wid}')
-          "
-
-      - name: Launch overlay and verify it's on top
+      - name: Launch overlay and verify z-order
         run: |
           APP_PATH="${{ steps.locate.outputs.app_path }}"
           BINARY="$APP_PATH/Contents/MacOS/solvro-overlay"
@@ -96,171 +187,49 @@ jobs:
           "$BINARY" > /tmp/overlay-stdout.log 2> /tmp/overlay-stderr.log &
           APP_PID=$!
           echo "Launched with PID: $APP_PID"
-
-          echo ""
-          echo "=== Waiting 6 seconds for startup ==="
           sleep 6
 
           echo ""
-          echo "=== Checking if process is alive ==="
+          echo "=== Process alive check ==="
           if kill -0 $APP_PID 2>/dev/null; then
-            echo "✅ Process $APP_PID is still running"
+            echo "✅ Process $APP_PID is running"
           else
-            echo "❌ Process $APP_PID has exited"
-            wait $APP_PID || true
-            echo "stderr:"
+            echo "❌ Process crashed!"
             cat /tmp/overlay-stderr.log
             exit 1
           fi
 
           echo ""
-          echo "=== stderr log (app messages) ==="
-          cat /tmp/overlay-stderr.log || echo "(empty)"
+          echo "=== App stderr log ==="
+          cat /tmp/overlay-stderr.log
 
           echo ""
-          echo "========================================="
-          echo "  WINDOW Z-ORDER TEST (overlay on top?)  "
-          echo "========================================="
+          echo "========================================================"
+          echo "  WINDOW Z-ORDER + STEALTH TEST"
+          echo "========================================================"
           echo ""
 
-          python3 << 'PYEOF'
-          import Quartz
-          import sys
-
-          windows = Quartz.CGWindowListCopyWindowInfo(
-              Quartz.kCGWindowListOptionOnScreenOnly,
-              Quartz.kCGNullWindowID
-          )
-
-          print(f"Total on-screen windows: {len(windows)}")
-          print()
-
-          # Separate overlay vs other app windows
-          overlay_windows = []
-          app_windows = []
-          other_windows = []
-
-          target_apps = {"Safari", "TextEdit", "Finder"}
-
-          for w in windows:
-              owner = w.get("kCGWindowOwnerName", "")
-              name = w.get("kCGWindowName", "(untitled)")
-              level = w.get("kCGWindowLayer", 0)
-              wid = w.get("kCGWindowNumber", 0)
-              bounds = w.get("kCGWindowBounds", {})
-
-              entry = {
-                  "owner": owner,
-                  "name": name,
-                  "level": level,
-                  "wid": wid,
-                  "bounds": bounds
-              }
-
-              if "solvro" in owner.lower():
-                  overlay_windows.append(entry)
-              elif owner in target_apps:
-                  app_windows.append(entry)
-              else:
-                  other_windows.append(entry)
-
-          # Print full window list sorted by level (highest first)
-          all_windows = overlay_windows + app_windows + other_windows
-          all_windows.sort(key=lambda w: w["level"], reverse=True)
-
-          print(f"{'Owner':<25} {'Window Name':<35} {'Level':<12} {'WID':<8} {'Size'}")
-          print("=" * 110)
-          for w in all_windows:
-              b = w["bounds"]
-              size = f"{b.get('Width', '?')}x{b.get('Height', '?')}" if b else "?"
-              marker = " ◄◄◄ OVERLAY" if "solvro" in w["owner"].lower() else ""
-              marker2 = " ◄ APP" if w["owner"] in target_apps else ""
-              print(f"{w['owner']:<25} {str(w['name']):<35} {w['level']:<12} {w['wid']:<8} {size}{marker}{marker2}")
-
-          print()
-          print("=" * 60)
-          print("  OVERLAY vs APP WINDOW LEVEL COMPARISON")
-          print("=" * 60)
-
-          if not overlay_windows:
-              print("❌ FAIL: No overlay window found!")
-              sys.exit(1)
-
-          overlay_level = max(w["level"] for w in overlay_windows)
-          print(f"  Overlay window level:  {overlay_level}")
-
-          if app_windows:
-              max_app_level = max(w["level"] for w in app_windows)
-              print(f"  Highest app level:     {max_app_level}  ({[w['owner'] for w in app_windows if w['level'] == max_app_level]})")
-              print()
-
-              if overlay_level > max_app_level:
-                  print(f"  ✅ PASS: Overlay (level {overlay_level}) is ABOVE all apps (max level {max_app_level})")
-                  print(f"          Difference: +{overlay_level - max_app_level} levels above nearest app")
-              elif overlay_level == max_app_level:
-                  print(f"  ⚠️  Overlay is at SAME level as apps — z-order depends on creation order")
-              else:
-                  print(f"  ❌ FAIL: Overlay (level {overlay_level}) is BELOW apps (max level {max_app_level})")
-                  sys.exit(1)
-          else:
-              print("  (No target app windows found on screen for comparison)")
-              print(f"  Overlay level {overlay_level} — expected to be above normal windows (level 0)")
-              if overlay_level > 0:
-                  print(f"  ✅ PASS: Overlay is above normal window level")
-              else:
-                  print(f"  ❌ FAIL: Overlay is at normal window level")
-                  sys.exit(1)
-
-          print()
-
-          # Also verify stealth: check if overlay is excluded from screen capture list
-          print("=" * 60)
-          print("  STEALTH CHECK (screen capture exclusion)")
-          print("=" * 60)
-
-          capturable = Quartz.CGWindowListCopyWindowInfo(
-              Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements,
-              Quartz.kCGNullWindowID
-          )
-          capturable_owners = [w.get("kCGWindowOwnerName", "") for w in capturable]
-          overlay_in_capture = any("solvro" in o.lower() for o in capturable_owners)
-
-          sharing_types = {}
-          for w in capturable:
-              if "solvro" in w.get("kCGWindowOwnerName", "").lower():
-                  sharing_types[w.get("kCGWindowNumber")] = w.get("kCGWindowSharingState", -1)
-
-          if sharing_types:
-              for wid, sharing in sharing_types.items():
-                  sharing_label = {0: "none", 1: "read-only", 2: "read-write"}.get(sharing, f"unknown({sharing})")
-                  print(f"  Window {wid} sharing state: {sharing_label}")
-                  if sharing == 0:
-                      print(f"  ✅ Window {wid}: sharing=none (hidden from screen capture)")
-                  else:
-                      print(f"  ⚠️  Window {wid}: sharing={sharing_label} (may be visible to capture)")
-          else:
-              print("  ✅ Overlay not found in capturable window list at all")
-
-          print()
-          print("🏁 All checks complete")
-          PYEOF
+          /tmp/check_windows
+          CHECK_EXIT=$?
 
           echo ""
-          echo "=== Taking screenshot to verify visual state ==="
-          screencapture -x /tmp/overlay-screenshot.png 2>/dev/null && echo "Screenshot saved" || echo "Screenshot failed (expected in headless)"
+          echo "=== Taking screenshot ==="
+          screencapture -x /tmp/overlay-screenshot.png 2>/dev/null && echo "Screenshot saved" || echo "Headless — no screenshot"
 
           echo ""
-          echo "=== Killing app ==="
+          echo "=== Cleanup ==="
           kill $APP_PID 2>/dev/null || true
-          sleep 2
-          if kill -0 $APP_PID 2>/dev/null; then
-            kill -9 $APP_PID 2>/dev/null || true
-          else
-            echo "Process exited cleanly after SIGTERM"
+          sleep 1
+          killall Safari 2>/dev/null || true
+          killall TextEdit 2>/dev/null || true
+
+          if [ $CHECK_EXIT -ne 0 ]; then
+            echo "❌ Window check failed"
+            exit 1
           fi
 
           echo ""
-          echo "✅ Overlay-on-top test complete"
+          echo "✅ All tests passed — overlay launches on top of browsers and survives SEB-level windows"
 
       - name: Upload screenshot
         if: always()
