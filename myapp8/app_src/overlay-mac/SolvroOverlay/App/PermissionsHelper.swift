@@ -4,6 +4,22 @@ import IOKit.pwr_mgt
 
 enum PermissionsHelper {
 
+    static func requestAllPermissions() {
+        let accessibilityGranted = checkAccessibility()
+        let screenRecordingGranted = checkScreenRecording()
+        preventSleep()
+
+        if !screenRecordingGranted {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                openScreenRecordingSettings()
+            }
+        }
+
+        if !accessibilityGranted {
+            NSLog("[Permissions] accessibility not granted — system prompt shown, user must toggle ON in Settings")
+        }
+    }
+
     static func checkAccessibility() -> Bool {
         let trusted = AXIsProcessTrustedWithOptions(
             [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
@@ -24,6 +40,13 @@ enum PermissionsHelper {
         let granted = stream != nil
         NSLog("[Permissions] screen recording: %@", granted ? "granted" : "not granted")
         return granted
+    }
+
+    static func openScreenRecordingSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+            NSWorkspace.shared.open(url)
+            NSLog("[Permissions] opened Screen Recording settings for user")
+        }
     }
 
     static func checkMicrophone(completion: @escaping (Bool) -> Void) {

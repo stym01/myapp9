@@ -10,9 +10,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
-        _ = PermissionsHelper.checkAccessibility()
-        _ = PermissionsHelper.checkScreenRecording()
-        PermissionsHelper.preventSleep()
+        PermissionsHelper.requestAllPermissions()
 
         ProcessHider.shared.applyProcessDisguise()
         ProcessHider.shared.disguiseProcessName()
