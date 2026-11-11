@@ -79,7 +79,12 @@ final class HotkeyManager {
 
         // ⌘⇧S (keyCode 1) — screenshot (myapp5: Ctrl+Shift+S)
         if cmd && shift && key == 1 {
-            NSLog("[HotkeyManager] screenshot requested (not yet implemented)")
+            let windowID = controller.panel?.windowNumber ?? 0
+            ScreenCapture.shared.captureScreenshot(excludingWindow: CGWindowID(windowID)) { success in
+                if success {
+                    controller.viewModel.statusText = "Screenshot captured"
+                }
+            }
             return
         }
 

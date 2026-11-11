@@ -24,6 +24,7 @@
 		A1000000F00000000000000F /* AIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000110000000000000011 /* AIClient.swift */; };
 		A10000100000000000000010 /* ConversationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000120000000000000012 /* ConversationManager.swift */; };
 		A10000110000000000000011 /* ModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000130000000000000013 /* ModelCatalog.swift */; };
+		A10000120000000000000012 /* ScreenCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000140000000000000014 /* ScreenCapture.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -46,6 +47,7 @@
 		A20000110000000000000011 /* AIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIClient.swift; sourceTree = "<group>"; };
 		A20000120000000000000012 /* ConversationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationManager.swift; sourceTree = "<group>"; };
 		A20000130000000000000013 /* ModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalog.swift; sourceTree = "<group>"; };
+		A20000140000000000000014 /* ScreenCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCapture.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -68,6 +70,7 @@
 				A300000A000000000000000A /* Input */,
 				A300000B000000000000000B /* Auth */,
 				A300000C000000000000000C /* AI */,
+				A300000D000000000000000D /* Capture */,
 				A30000040000000000000004 /* Resources */,
 				A20000030000000000000003 /* Info.plist */,
 			);
@@ -141,6 +144,14 @@
 				A20000100000000000000010 /* AuthService.swift */,
 			);
 			path = Auth;
+			sourceTree = "<group>";
+		};
+		A300000D000000000000000D /* Capture */ = {
+			isa = PBXGroup;
+			children = (
+				A20000140000000000000014 /* ScreenCapture.swift */,
+			);
+			path = Capture;
 			sourceTree = "<group>";
 		};
 		A300000C000000000000000C /* AI */ = {
@@ -229,6 +240,7 @@
 				A1000000F00000000000000F /* AIClient.swift in Sources */,
 				A10000100000000000000010 /* ConversationManager.swift in Sources */,
 				A10000110000000000000011 /* ModelCatalog.swift in Sources */,
+				A10000120000000000000012 /* ScreenCapture.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

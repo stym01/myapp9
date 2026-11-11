@@ -35,9 +35,12 @@ final class OverlayViewModel: ObservableObject {
         isLoading = true
         statusText = "Thinking..."
 
-        ConversationManager.shared.addUserMessage(trimmed)
+        let screenshots = ScreenCapture.shared.screenshots
+        let hasImages = !screenshots.isEmpty
+        ConversationManager.shared.addUserMessage(trimmed, hasImage: hasImages)
+        ScreenCapture.shared.clearScreenshots()
 
-        AIClient.shared.sendToAI(userPrompt: trimmed) { [weak self] response in
+        AIClient.shared.sendToAI(userPrompt: trimmed, screenshots: screenshots) { [weak self] response in
             guard let self else { return }
             ConversationManager.shared.addAssistantMessage(response)
             let assistantMsg = ChatMessage(role: .assistant, text: response, timestamp: Date())
