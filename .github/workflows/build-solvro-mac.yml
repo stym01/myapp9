@@ -68,7 +68,7 @@ jobs:
         working-directory: ./myapp8/app_src
         run: |
           echo "=== Building Solvro macOS DMG ==="
-          npx electron-builder --mac --arm64
+          npx electron-builder --mac --arm64 --publish never
           echo ""
           echo "=== Build output ==="
           ls -lh dist/
