@@ -66,6 +66,11 @@ final class AIClient {
 
             AuthService.shared.fetchSolvroUsage()
 
+            let codeBlock = self.extractLatestCodeBlock(result)
+            if !codeBlock.isEmpty {
+                AutoTyper.shared.setCode(codeBlock, language: lang.id)
+            }
+
             DispatchQueue.main.async {
                 onComplete(result)
             }
@@ -291,6 +296,29 @@ final class AIClient {
     }
 
     // MARK: - System prompt (matches myapp5 GetCodingPrompt)
+
+    private func extractLatestCodeBlock(_ text: String) -> String {
+        var lastBlock = ""
+        let lines = text.components(separatedBy: "\n")
+        var inBlock = false
+        var current: [String] = []
+
+        for line in lines {
+            if line.hasPrefix("```") && !inBlock {
+                inBlock = true
+                current = []
+            } else if line.hasPrefix("```") && inBlock {
+                inBlock = false
+                let block = current.joined(separator: "\n")
+                if !block.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    lastBlock = block
+                }
+            } else if inBlock {
+                current.append(line)
+            }
+        }
+        return lastBlock
+    }
 
     private func getCodingPrompt(langId: String, langName: String) -> String {
         return "You are an elite coding assistant. The user is sending you a screenshot of their screen. The programming language context is \(langName) (\(langId)). Analyze the screenshot carefully. If it contains a coding problem, provide the solution. If it contains an error, debug it. If it contains a question, answer it directly. Use markdown code blocks (```) for code. NEVER use ** for bold text. For MCQs, give ONLY the correct answer. Never refuse to answer."

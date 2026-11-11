@@ -100,6 +100,24 @@ final class HotkeyManager {
             return
         }
 
+        // ⌘⇧T (keyCode 17) — start auto-type (myapp5: Ctrl+Shift+T)
+        if cmd && shift && key == 17 {
+            AutoTyper.shared.start()
+            return
+        }
+
+        // ⌘⇧Y (keyCode 16) — resume auto-type (myapp5: Ctrl+Shift+Y)
+        if cmd && shift && key == 16 {
+            AutoTyper.shared.resume()
+            return
+        }
+
+        // F8 (keyCode 100) — stop auto-type (myapp5: F8)
+        if key == 100 && !cmd && !shift {
+            AutoTyper.shared.stop()
+            return
+        }
+
         // ⌘⇧Q (keyCode 12) — quit overlay (myapp5: Ctrl+Shift+Q)
         if cmd && shift && key == 12 {
             NSLog("[HotkeyManager] quit requested")

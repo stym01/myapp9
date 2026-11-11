@@ -26,6 +26,7 @@
 		A10000110000000000000011 /* ModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000130000000000000013 /* ModelCatalog.swift */; };
 		A10000120000000000000012 /* ScreenCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000140000000000000014 /* ScreenCapture.swift */; };
 		A10000130000000000000013 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000150000000000000015 /* AppConfig.swift */; };
+		A10000140000000000000014 /* AutoTyper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000160000000000000016 /* AutoTyper.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -50,6 +51,7 @@
 		A20000130000000000000013 /* ModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelCatalog.swift; sourceTree = "<group>"; };
 		A20000140000000000000014 /* ScreenCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCapture.swift; sourceTree = "<group>"; };
 		A20000150000000000000015 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		A20000160000000000000016 /* AutoTyper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTyper.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -74,6 +76,7 @@
 				A300000C000000000000000C /* AI */,
 				A300000D000000000000000D /* Capture */,
 				A300000E000000000000000E /* Config */,
+				A300000F000000000000000F /* AutoType */,
 				A30000040000000000000004 /* Resources */,
 				A20000030000000000000003 /* Info.plist */,
 			);
@@ -147,6 +150,14 @@
 				A20000100000000000000010 /* AuthService.swift */,
 			);
 			path = Auth;
+			sourceTree = "<group>";
+		};
+		A300000F000000000000000F /* AutoType */ = {
+			isa = PBXGroup;
+			children = (
+				A20000160000000000000016 /* AutoTyper.swift */,
+			);
+			path = AutoType;
 			sourceTree = "<group>";
 		};
 		A300000E000000000000000E /* Config */ = {
@@ -253,6 +264,7 @@
 				A10000110000000000000011 /* ModelCatalog.swift in Sources */,
 				A10000120000000000000012 /* ScreenCapture.swift in Sources */,
 				A10000130000000000000013 /* AppConfig.swift in Sources */,
+				A10000140000000000000014 /* AutoTyper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

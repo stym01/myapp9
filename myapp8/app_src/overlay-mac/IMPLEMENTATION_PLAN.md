@@ -35,8 +35,9 @@ The native overlay handles: stealth window, screen-capture hiding, kiosk bypass,
 - Phase 8: ✅ DONE (Screenshot Capture — ScreenCaptureKit + CGWindow fallback)
 - Phase 9: ✅ DONE (Global Hotkeys — rewritten to match myapp5 key bindings)
 - Phase 10: ✅ DONE (Remote Config — app-config updates ModelCatalog, AppConfig persistence)
+- Phase 12: ✅ DONE (Auto-Type — CGEvent keystroke simulation with human-like timing)
 
-**Note**: Phases 1-4, 6-10 are done. Phase 5 (Markdown) was skipped. Next up: Phase 11 (Settings Panel).
+**Note**: Phases 1-4, 6-10, 12 are done. Phase 5 (Markdown) and Phase 11 (Settings) were skipped for now. Next up: Phase 13 (Voice Input) or Phase 15 (Kiosk Bypass).
 
 ---
 
