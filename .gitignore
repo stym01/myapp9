@@ -36,6 +36,10 @@ myapp8/website/
 myapp8/app_src/dist/
 myapp8/app_src/overlay-mac-bin/
 
+# OAuth secrets (desktop client credentials)
+myapp8/app_src/src/utils/google-oauth.js
+myapp8/app_src/src/utils/apple-oauth.js
+
 # Large / binary archives (already tracked individually where needed)
 *.zip
 !hope.zip
