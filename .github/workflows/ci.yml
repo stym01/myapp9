@@ -1,0 +1,43 @@
+name: CI
+
+# Compile-checks the macOS native overlay on every push and PR.
+# The desktop app (Electron) and interview-app CI are defined in
+# myapp8/.github/workflows/ci.yml and run when that directory is
+# the repo root; this root-level workflow covers the overlay build.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  mac-overlay:
+    name: macOS native overlay
+    runs-on: macos-14
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build Release (universal)
+        working-directory: ./myapp8/app_src/overlay-mac
+        run: |
+          xcodebuild \
+            -project SolvroOverlay.xcodeproj \
+            -scheme SolvroOverlay \
+            -configuration Release \
+            -arch x86_64 -arch arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="-" \
+            build
+
+      - name: Verify universal binary
+        run: |
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "solvro-overlay.app" -type d | head -1)
+          test -n "$APP_PATH"
+          ARCHS=$(lipo -archs "$APP_PATH/Contents/MacOS/solvro-overlay")
+          echo "Architectures: $ARCHS"
+          echo "macOS overlay build OK"
