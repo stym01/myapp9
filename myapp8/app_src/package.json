@@ -1,0 +1,133 @@
+{
+  "name": "solvro",
+  "productName": "Solvro",
+  "version": "3.2.6",
+  "main": "main.js",
+  "author": {
+    "name": "Solvro",
+    "email": "support@solvro.in"
+  },
+  "homepage": "https://solvro.in",
+  "license": "ISC",
+  "description": "Solvro - AI Assistant",
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "electron-audio-loopback": "^1.0.6",
+    "electron-screenshot": "^1.0.5",
+    "electron-updater": "^6.8.9",
+    "express": "^5.2.1",
+    "highlight.js": "^11.11.1",
+    "katex": "^0.16.47",
+    "marked": "^15.0.12",
+    "node-global-key-listener": "^0.3.0",
+    "ws": "^8.21.2"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3",
+    "fs-extra": "^11.3.6",
+    "javascript-obfuscator": "^5.5.0",
+    "vitest": "^2.1.9"
+  },
+  "scripts": {
+    "build": "electron-builder",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "build": {
+    "appId": "com.solvro.app",
+    "productName": "Solvro",
+    "files": [
+      "**/*",
+      "!kernel-driver/**",
+      "!service/**",
+      "!overlay-mac/**",
+      "!overlay-mac-bin/**"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "stym01",
+        "repo": "solvro-releases",
+        "releaseType": "release"
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "afterPack": "build/afterPack.js",
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/logo.png",
+      "extraResources": [
+        {
+          "from": "hope",
+          "to": "hope",
+          "filter": [
+            "**/*"
+          ]
+        }
+      ]
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.developer-tools",
+      "icon": "assets/logo.png",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "notarize": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.inherit.plist",
+      "extraResources": [
+        {
+          "from": "overlay-mac-bin",
+          "to": "overlay-mac",
+          "filter": [
+            "**/*"
+          ]
+        }
+      ],
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Solvro uses your microphone to transcribe your speech during interview practice.",
+        "NSCameraUsageDescription": "Solvro may access the camera for media capture features.",
+        "NSAppleEventsUsageDescription": "Solvro uses automation to type generated answers into other apps (auto-type).",
+        "NSAudioCaptureUsageDescription": "Solvro captures system audio so it can transcribe the interviewer during interview mode.",
+        "NSSupportsAutomaticGraphicsSwitching": true,
+        "LSMinimumSystemVersion": "10.15.0"
+      }
+    },
+    "nsis": {
+      "artifactName": "solvro.exe",
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "include": "build/installer.nsh"
+    },
+    "asarUnpack": [
+      "node_modules/node-global-key-listener/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "interview-web",
+        "to": "interview-web",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
+  }
+}

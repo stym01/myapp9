@@ -1,0 +1,265 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000010000000000000001 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000001 /* main.swift */; };
+		A10000020000000000000002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000020000000000000002 /* AppDelegate.swift */; };
+		A10000030000000000000003 /* CGSBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000050000000000000005 /* CGSBridge.swift */; };
+		A10000040000000000000004 /* OverlayPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000060000000000000006 /* OverlayPanel.swift */; };
+		A10000050000000000000005 /* OverlayWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000070000000000000007 /* OverlayWindowController.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20000010000000000000001 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		A20000020000000000000002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		A20000030000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A20000040000000000000004 /* solvro-overlay.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "solvro-overlay.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000050000000000000005 /* CGSBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CGSBridge.swift; sourceTree = "<group>"; };
+		A20000060000000000000006 /* OverlayPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayPanel.swift; sourceTree = "<group>"; };
+		A20000070000000000000007 /* OverlayWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayWindowController.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		A30000010000000000000001 /* root */ = {
+			isa = PBXGroup;
+			children = (
+				A30000020000000000000002 /* SolvroOverlay */,
+				A30000050000000000000005 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A30000020000000000000002 /* SolvroOverlay */ = {
+			isa = PBXGroup;
+			children = (
+				A30000030000000000000003 /* App */,
+				A30000060000000000000006 /* Overlay */,
+				A30000040000000000000004 /* Resources */,
+				A20000030000000000000003 /* Info.plist */,
+			);
+			path = SolvroOverlay;
+			sourceTree = "<group>";
+		};
+		A30000030000000000000003 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				A20000010000000000000001 /* main.swift */,
+				A20000020000000000000002 /* AppDelegate.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A30000060000000000000006 /* Overlay */ = {
+			isa = PBXGroup;
+			children = (
+				A20000050000000000000005 /* CGSBridge.swift */,
+				A20000060000000000000006 /* OverlayPanel.swift */,
+				A20000070000000000000007 /* OverlayWindowController.swift */,
+			);
+			path = Overlay;
+			sourceTree = "<group>";
+		};
+		A30000040000000000000004 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		A30000050000000000000005 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A20000040000000000000004 /* solvro-overlay.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A40000010000000000000001 /* SolvroOverlay */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A60000010000000000000001 /* Build configuration list for PBXNativeTarget "SolvroOverlay" */;
+			buildPhases = (
+				A50000010000000000000001 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SolvroOverlay;
+			productName = "solvro-overlay";
+			productReference = A20000040000000000000004 /* solvro-overlay.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A70000010000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = A60000020000000000000002 /* Build configuration list for PBXProject "SolvroOverlay" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A30000010000000000000001 /* root */;
+			productRefGroup = A30000050000000000000005 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A40000010000000000000001 /* SolvroOverlay */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A50000010000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000010000000000000001 /* main.swift in Sources */,
+				A10000020000000000000002 /* AppDelegate.swift in Sources */,
+				A10000030000000000000003 /* CGSBridge.swift in Sources */,
+				A10000040000000000000004 /* OverlayPanel.swift in Sources */,
+				A10000050000000000000005 /* OverlayWindowController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		B10000010000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		B10000020000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		B20000010000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD)";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SolvroOverlay/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.solvro.overlay;
+				PRODUCT_NAME = "solvro-overlay";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		B20000020000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD)";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SolvroOverlay/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.solvro.overlay;
+				PRODUCT_NAME = "solvro-overlay";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A60000010000000000000001 /* Build configuration list for PBXNativeTarget "SolvroOverlay" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B20000010000000000000001 /* Debug */,
+				B20000020000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A60000020000000000000002 /* Build configuration list for PBXProject "SolvroOverlay" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B10000010000000000000001 /* Debug */,
+				B10000020000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = A70000010000000000000001 /* Project object */;
+}

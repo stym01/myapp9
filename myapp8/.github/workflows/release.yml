@@ -1,0 +1,213 @@
+name: Build and Publish Electron Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+jobs:
+  # ── Gate: every tagged release must pass the full test suite first ──────────
+  # The desktop app (app_src) bundles the interview UI (interview-app), so both
+  # are tested here. If anything fails, the release jobs below never run and
+  # nothing is published to solvro-releases.
+  #
+  # This job also *builds* the interview UI and hands the result to the build
+  # jobs as an artifact. app_src/interview-web/ is committed for local dev, but
+  # a release must never ship it: it goes stale the moment someone edits
+  # interview-app/src without rebuilding, and no test would catch that because
+  # the suites run against source, not the bundle. Building once here (rather
+  # than once per OS) also guarantees both platforms ship byte-identical
+  # interview assets.
+  test:
+    name: Test & build interview bundle (gate)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            app_src/package-lock.json
+            interview-app/package-lock.json
+
+      - name: Install desktop app deps (app_src)
+        working-directory: ./app_src
+        # Electron's postinstall downloads a ~100MB binary that no test needs;
+        # the suites run under plain Node and mock `electron` away. The build
+        # jobs below install without this flag, because packaging does need it.
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+        run: npm ci
+
+      - name: Test desktop app (app_src)
+        working-directory: ./app_src
+        run: npm test
+
+      - name: Install interview UI deps (interview-app)
+        working-directory: ./interview-app
+        run: npm ci
+
+      - name: Typecheck interview UI (interview-app)
+        working-directory: ./interview-app
+        run: npm run typecheck
+
+      - name: Test interview UI (interview-app)
+        working-directory: ./interview-app
+        run: npm test
+
+      - name: Build interview UI (interview-app)
+        working-directory: ./interview-app
+        run: npm run build
+
+      - name: Verify the bundle the desktop app ships was produced
+        # interview-app builds into app_src/interview-web/, which electron-builder
+        # copies in as extraResources. A build that silently emits nothing would
+        # ship a desktop app with a blank interview window.
+        run: |
+          test -f app_src/interview-web/index.html
+          ls app_src/interview-web/assets/*.js >/dev/null
+          echo "interview-web bundle present"
+
+      - name: Upload the interview UI bundle for the build jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: interview-web
+          path: app_src/interview-web
+          if-no-files-found: error
+          retention-days: 1
+
+  # ── Build the native macOS overlay (Swift/Metal) ─────────────────────────────
+  # Compiles a universal (x86_64 + arm64) .app bundle that the mac Electron
+  # build bundles as an extraResource. Runs in parallel with the test gate
+  # since it has no JS dependencies.
+  mac-overlay:
+    name: Build macOS native overlay
+    runs-on: macos-14
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build Release (universal)
+        working-directory: ./app_src/overlay-mac
+        run: |
+          xcodebuild \
+            -project SolvroOverlay.xcodeproj \
+            -scheme SolvroOverlay \
+            -configuration Release \
+            -arch x86_64 -arch arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="-" \
+            build
+
+      - name: Stage app bundle
+        working-directory: ./app_src/overlay-mac
+        run: |
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "solvro-overlay.app" -type d | head -1)
+          test -n "$APP_PATH"
+          mkdir -p ../../staging-overlay
+          cp -R "$APP_PATH" ../../staging-overlay/solvro-overlay.app
+          lipo -archs ../../staging-overlay/solvro-overlay.app/Contents/MacOS/solvro-overlay
+          echo "macOS overlay staged"
+
+      - name: Upload overlay artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: solvro-overlay-mac
+          path: staging-overlay/solvro-overlay.app
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    name: Build & publish (${{ matrix.os }})
+    needs: [test, mac-overlay] # ← publish only if the test gate AND overlay build passed
+    strategy:
+      # One platform failing should not cancel the other: shipping one of two is
+      # better than shipping none. The trade-off is that a tag can end up
+      # partially published, so check every leg went green before announcing a
+      # release -- auto-update users on a failed platform stay on the old build.
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - os: windows-latest
+            platform: --win
+          - os: macos-latest
+            platform: --mac
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app_src/package-lock.json
+
+      - name: Drop the committed interview UI bundle
+        # Removed rather than overwritten: vite fingerprints its output
+        # (index-<hash>.js), so merging over the top would leave orphaned assets
+        # from the committed copy inside the shipped package.
+        shell: bash
+        run: rm -rf app_src/interview-web
+
+      - name: Restore the interview UI bundle built by the gate
+        uses: actions/download-artifact@v4
+        with:
+          name: interview-web
+          path: app_src/interview-web
+
+      - name: Verify the restored bundle before packaging
+        shell: bash
+        run: |
+          test -f app_src/interview-web/index.html
+          ls app_src/interview-web/assets/*.js >/dev/null
+          echo "interview-web bundle restored"
+
+      - name: Verify hope.exe overlay binary (Windows only)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          test -f app_src/hope/hope.exe
+          test -f app_src/hope/Dll1.dll
+          echo "hope.exe overlay binary present ($(wc -c < app_src/hope/hope.exe) bytes)"
+          echo "Dll1.dll stealth DLL present ($(wc -c < app_src/hope/Dll1.dll) bytes)"
+
+      - name: Restore macOS native overlay (macOS only)
+        if: matrix.os == 'macos-latest'
+        uses: actions/download-artifact@v4
+        with:
+          name: solvro-overlay-mac
+          path: app_src/overlay-mac-bin/solvro-overlay.app
+
+      - name: Verify native overlay (macOS only)
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          test -d app_src/overlay-mac-bin/solvro-overlay.app
+          test -f app_src/overlay-mac-bin/solvro-overlay.app/Contents/MacOS/solvro-overlay
+          echo "macOS native overlay present"
+          lipo -archs app_src/overlay-mac-bin/solvro-overlay.app/Contents/MacOS/solvro-overlay
+
+      - name: Install Dependencies
+        working-directory: ./app_src
+        run: npm ci
+
+      # No Apple Developer ID yet: the mac build is ad-hoc signed by app_src/build/afterPack.js
+      # (without it Gatekeeper reports the app as "damaged"). Users still clear a one-time
+      # "Open Anyway" prompt in System Settings -> Privacy & Security.
+
+      - name: Build and Publish
+        working-directory: ./app_src
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: npm run build -- ${{ matrix.platform }} --publish always

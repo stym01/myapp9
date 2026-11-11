@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build output
+dist/
+*.dmg
+*.exe
+!myapp8/app_src/hope/hope.exe
+
+# Environment / secrets
+.env
+.env.*
+oauth.json
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Xcode
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# The website is a separate repository with its own CI
+myapp8/website/
+
+# Electron build artifacts
+myapp8/app_src/dist/
+myapp8/app_src/overlay-mac-bin/
+
+# Large / binary archives (already tracked individually where needed)
+*.zip
+!hope.zip
+
+# Interview app build output is committed for local dev but rebuilt in CI
+# myapp8/app_src/interview-web/ is intentionally tracked
+
+# Videos
+myapp8/videos/

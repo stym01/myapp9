@@ -1,0 +1,50 @@
+name: Update E2E (temporary)
+
+# Runs real builds through the real updater on a clean Windows machine, including
+# the real 3.2.5 installer customers have today. Never publishes anything.
+on:
+  push:
+    branches: [update-e2e]
+
+jobs:
+  e2e:
+    runs-on: windows-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app_src/package-lock.json
+
+      - name: Install
+        working-directory: ./app_src
+        run: npm ci
+
+      - name: Unit tests
+        working-directory: ./app_src
+        run: npm test
+
+      - name: Build test versions
+        working-directory: ./app_src
+        run: node ../.github/e2e/build.js
+
+      - name: Download the real 3.2.5
+        shell: bash
+        run: |
+          mkdir -p e2e-out/old
+          curl -fsSL -o e2e-out/old/solvro.exe https://github.com/stym01/solvro-releases/releases/download/v3.2.5/solvro.exe
+          ls -la e2e-out/old e2e-out/a e2e-out/a2 e2e-out/b
+
+      - name: Run scenarios
+        working-directory: ./app_src
+        run: node ../.github/e2e/run.js
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-logs
+          path: e2e-out/logs
+          if-no-files-found: ignore

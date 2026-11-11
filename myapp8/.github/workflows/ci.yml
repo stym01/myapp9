@@ -1,0 +1,112 @@
+name: CI
+
+# Runs the desktop app and interview UI suites on every push and PR.
+#
+# release.yml already gates a tagged release on these same tests, but a tag is
+# the worst time to discover a break -- by then you are mid-release. This runs
+# the same checks continuously so a red commit is visible immediately.
+#
+# The website is a separate repository (stym01/oacopilot) with its own CI; it is
+# gitignored here and nothing in this workflow touches it.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  desktop:
+    name: Desktop app (app_src)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app_src/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./app_src
+        # Electron's postinstall downloads a ~100MB binary that no test needs;
+        # the suites run under plain Node and mock `electron` away.
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+        run: npm ci
+
+      - name: Run tests
+        working-directory: ./app_src
+        run: npm test
+
+  interview-ui:
+    name: Interview UI (interview-app)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: interview-app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./interview-app
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: ./interview-app
+        run: npm run typecheck
+
+      - name: Run tests
+        working-directory: ./interview-app
+        run: npm test
+
+      - name: Build
+        working-directory: ./interview-app
+        run: npm run build
+
+      - name: Verify the bundle the desktop app ships was produced
+        # interview-app builds into app_src/interview-web/, which electron-builder
+        # copies in as extraResources. A build that silently emits nothing would
+        # ship a desktop app with a blank interview window.
+        run: |
+          test -f app_src/interview-web/index.html
+          ls app_src/interview-web/assets/*.js >/dev/null
+          echo "interview-web bundle present"
+
+  mac-overlay:
+    name: macOS native overlay (overlay-mac)
+    runs-on: macos-14
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build Release (universal)
+        working-directory: ./app_src/overlay-mac
+        run: |
+          xcodebuild \
+            -project SolvroOverlay.xcodeproj \
+            -scheme SolvroOverlay \
+            -configuration Release \
+            -arch x86_64 -arch arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="-" \
+            build
+
+      - name: Verify universal binary
+        working-directory: ./app_src/overlay-mac
+        run: |
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "solvro-overlay.app" -type d | head -1)
+          test -n "$APP_PATH"
+          lipo -archs "$APP_PATH/Contents/MacOS/solvro-overlay"
+          echo "macOS overlay build OK"

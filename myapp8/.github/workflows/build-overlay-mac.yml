@@ -1,0 +1,94 @@
+name: Build macOS Native Overlay
+
+# Builds the native Swift overlay as a universal (x86_64 + arm64) macOS app
+# bundle and uploads it as a workflow artifact. The release workflow downloads
+# this artifact and bundles it inside the Electron DMG.
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'app_src/overlay-mac/**'
+      - '.github/workflows/build-overlay-mac.yml'
+  pull_request:
+    branches: ['**']
+    paths:
+      - 'app_src/overlay-mac/**'
+      - '.github/workflows/build-overlay-mac.yml'
+  workflow_call:
+    # Allow the release workflow to invoke this as a reusable workflow
+    outputs:
+      artifact-name:
+        description: 'Name of the uploaded artifact containing solvro-overlay.app'
+        value: solvro-overlay-mac
+
+jobs:
+  build:
+    name: Build universal binary
+    runs-on: macos-14
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Show build environment
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Build Release (universal)
+        working-directory: ./app_src/overlay-mac
+        run: |
+          xcodebuild \
+            -project SolvroOverlay.xcodeproj \
+            -scheme SolvroOverlay \
+            -configuration Release \
+            -arch x86_64 -arch arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="-" \
+            build
+
+      - name: Locate and verify app bundle
+        id: locate
+        working-directory: ./app_src/overlay-mac
+        run: |
+          # Find the built .app in DerivedData
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "solvro-overlay.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: solvro-overlay.app not found in DerivedData"
+            exit 1
+          fi
+          echo "app_path=$APP_PATH" >> "$GITHUB_OUTPUT"
+
+          echo "--- App bundle contents ---"
+          ls -lR "$APP_PATH/Contents/"
+
+          echo "--- Binary architectures ---"
+          lipo -info "$APP_PATH/Contents/MacOS/solvro-overlay"
+
+          echo "--- Info.plist ---"
+          cat "$APP_PATH/Contents/Info.plist"
+
+          # Verify it is a universal binary
+          ARCHS=$(lipo -archs "$APP_PATH/Contents/MacOS/solvro-overlay")
+          echo "Architectures: $ARCHS"
+          if [[ "$ARCHS" != *"x86_64"* ]] || [[ "$ARCHS" != *"arm64"* ]]; then
+            echo "WARNING: Binary is not universal — got: $ARCHS"
+          else
+            echo "Universal binary confirmed (x86_64 + arm64)"
+          fi
+
+      - name: Stage artifact
+        run: |
+          mkdir -p staging
+          cp -R "${{ steps.locate.outputs.app_path }}" staging/solvro-overlay.app
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: solvro-overlay-mac
+          path: staging/solvro-overlay.app
+          if-no-files-found: error
+          retention-days: 30
