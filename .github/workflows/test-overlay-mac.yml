@@ -1,0 +1,135 @@
+name: Smoke Test macOS Overlay
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    name: Build & Launch Test
+    runs-on: macos-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Show runner info
+        run: |
+          echo "macOS version:"
+          sw_vers
+          echo ""
+          echo "Xcode version:"
+          xcodebuild -version
+          echo ""
+          echo "Metal support:"
+          system_profiler SPDisplaysDataType 2>/dev/null | head -30 || echo "No display info"
+
+      - name: Build Release
+        working-directory: ./myapp8/app_src/overlay-mac
+        run: |
+          xcodebuild \
+            -project SolvroOverlay.xcodeproj \
+            -scheme SolvroOverlay \
+            -configuration Release \
+            -arch arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="-" \
+            build 2>&1 | tail -20
+
+      - name: Locate app bundle
+        id: locate
+        run: |
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "solvro-overlay.app" -type d | head -1)
+          echo "app_path=$APP_PATH" >> "$GITHUB_OUTPUT"
+          echo "App found at: $APP_PATH"
+          echo ""
+          echo "Binary info:"
+          file "$APP_PATH/Contents/MacOS/solvro-overlay"
+          lipo -info "$APP_PATH/Contents/MacOS/solvro-overlay"
+          echo ""
+          echo "Bundle contents:"
+          ls -la "$APP_PATH/Contents/"
+          echo ""
+          echo "Info.plist:"
+          cat "$APP_PATH/Contents/Info.plist" 2>/dev/null || echo "No Info.plist"
+
+      - name: Create mock token file (simulate logged-in user)
+        run: |
+          mkdir -p ~/Desktop
+          echo "mock-test-token-for-ci" > ~/Desktop/solvro-token.txt
+          echo "Token file created at ~/Desktop/solvro-token.txt"
+
+      - name: Launch app and smoke test
+        run: |
+          APP_PATH="${{ steps.locate.outputs.app_path }}"
+          BINARY="$APP_PATH/Contents/MacOS/solvro-overlay"
+
+          echo "=== Launching overlay app ==="
+          # Launch the binary directly so we can capture stdout/stderr
+          "$BINARY" > /tmp/overlay-stdout.log 2> /tmp/overlay-stderr.log &
+          APP_PID=$!
+          echo "Launched with PID: $APP_PID"
+
+          echo ""
+          echo "=== Waiting 8 seconds for startup ==="
+          sleep 8
+
+          echo ""
+          echo "=== Checking if process is alive ==="
+          if kill -0 $APP_PID 2>/dev/null; then
+            echo "✅ Process $APP_PID is still running after 8 seconds — no crash!"
+          else
+            echo "❌ Process $APP_PID has exited"
+            WAIT_STATUS=0
+            wait $APP_PID || WAIT_STATUS=$?
+            echo "Exit code: $WAIT_STATUS"
+          fi
+
+          echo ""
+          echo "=== Process info ==="
+          ps aux | grep -i solvro || true
+
+          echo ""
+          echo "=== stdout log ==="
+          cat /tmp/overlay-stdout.log || echo "(empty)"
+
+          echo ""
+          echo "=== stderr log ==="
+          cat /tmp/overlay-stderr.log || echo "(empty)"
+
+          echo ""
+          echo "=== Checking for crash reports ==="
+          find ~/Library/Logs/DiagnosticReports -name "*solvro*" -o -name "*Solvro*" 2>/dev/null || echo "No crash reports found"
+          ls -la ~/Library/Logs/DiagnosticReports/ 2>/dev/null || echo "No DiagnosticReports directory"
+
+          echo ""
+          echo "=== Checking system log for app messages ==="
+          log show --last 30s --predicate 'process == "solvro-overlay"' 2>/dev/null | tail -30 || echo "No log entries"
+
+          echo ""
+          echo "=== Killing app ==="
+          kill $APP_PID 2>/dev/null || true
+          sleep 2
+
+          echo ""
+          echo "=== Final check — process should be gone ==="
+          if kill -0 $APP_PID 2>/dev/null; then
+            echo "Process still alive, force killing"
+            kill -9 $APP_PID 2>/dev/null || true
+          else
+            echo "Process exited cleanly after SIGTERM"
+          fi
+
+          # Fail the step if the process died before we killed it
+          if ! kill -0 $APP_PID 2>/dev/null; then
+            # Check if we killed it or if it crashed
+            if [ -f /tmp/overlay-stderr.log ] && grep -qi "crash\|abort\|fatal\|segfault" /tmp/overlay-stderr.log; then
+              echo ""
+              echo "❌ FAIL: App appears to have crashed"
+              exit 1
+            fi
+          fi
+
+          echo ""
+          echo "✅ Smoke test passed"
