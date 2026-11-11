@@ -43,8 +43,11 @@ The native overlay handles: stealth window, screen-capture hiding, kiosk bypass,
 
 - Phase 17: ✅ DONE (Window Management — WindowManager save/restore position, multi-display cycle)
 - Phase 19: ✅ DONE (Electron Integration — main.js updated to launch solvro-overlay.app on macOS)
+- Phase 20: ✅ DONE (Installer — electron-builder mac config already in package.json, overlay-mac-bin → overlay-mac)
+- Phase 21: ✅ DONE (Chat History — file-based saving to Desktop/Solvro-chat-history/{date}/)
+- Phase 23: ✅ DONE (Edge Cases — PermissionsHelper for Accessibility/ScreenRecording/Mic, sleep prevention)
 
-**Note**: Phases 1-4, 6-10, 12-13, 15-17, 19 are done. Phase 5 (Markdown), Phase 11 (Settings), Phase 14 (Interview) skipped. Next up: Phase 18 (Version Check), Phase 20 (Installer), Phase 21-25.
+**Note**: Phases 1-4, 6-10, 12-13, 15-17, 19-21, 23 are done. Phase 5 (Markdown), Phase 11 (Settings), Phase 14 (Interview) skipped. Remaining: Phase 18 (Version Check), Phase 22 (Theme/UI Polish), Phase 24 (Testing), Phase 25 (Release Pipeline).
 
 ---
 
