@@ -1,12 +1,13 @@
 import Cocoa
+import SwiftUI
 
-/// Manages the lifecycle of the stealth overlay panel: creation, positioning,
-/// opacity, visibility toggle, and movement.
 final class OverlayWindowController {
 
     private(set) var panel: OverlayPanel?
     private(set) var renderer: Renderer?
     private(set) var metalView: MetalView?
+    private(set) var hostingView: NSHostingView<OverlayContentView>?
+    let viewModel = OverlayViewModel()
 
     // Opacity state — mirrors the Windows Electron app's logic
     private var currentOpacity: CGFloat = 1.0
@@ -31,25 +32,32 @@ final class OverlayWindowController {
 
         let overlay = OverlayPanel(contentRect: panelRect)
 
-        // Metal rendering surface — clears to transparent each frame so the
-        // overlay composites cleanly over the desktop. SwiftUI views will be
-        // added as a subview on top in Phase 4.
         let viewFrame = NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight)
+
+        // Base container that holds Metal + SwiftUI layers
+        let container = NSView(frame: viewFrame)
+        container.autoresizingMask = [.width, .height]
+        container.wantsLayer = true
+        overlay.contentView = container
+
+        // Metal layer (bottom) — clears to transparent each frame
         if let r = Renderer() {
             self.renderer = r
             let mv = MetalView(frame: viewFrame, renderer: r)
             mv.autoresizingMask = [.width, .height]
-            overlay.contentView = mv
+            container.addSubview(mv)
             self.metalView = mv
             NSLog("[OverlayWindowController] Metal rendering active")
-        } else {
-            // Fallback: plain dark view if Metal is unavailable (e.g. VM)
-            let placeholder = NSView(frame: viewFrame)
-            placeholder.wantsLayer = true
-            placeholder.layer?.backgroundColor = NSColor(red: 0.102, green: 0.102, blue: 0.180, alpha: 0.85).cgColor
-            overlay.contentView = placeholder
-            NSLog("[OverlayWindowController] Metal unavailable, using fallback view")
         }
+
+        // SwiftUI layer (top) — the actual overlay UI
+        let contentView = OverlayContentView(viewModel: viewModel)
+        let hosting = NSHostingView(rootView: contentView)
+        hosting.frame = viewFrame
+        hosting.autoresizingMask = [.width, .height]
+        container.addSubview(hosting)
+        self.hostingView = hosting
+        NSLog("[OverlayWindowController] SwiftUI hosting view added")
 
         overlay.alphaValue = currentOpacity
         overlay.orderFront(nil)

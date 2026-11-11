@@ -16,6 +16,8 @@
 		A10000070000000000000007 /* MetalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000090000000000000009 /* MetalView.swift */; };
 		A10000080000000000000008 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2000000A00000000000000A /* Metal.framework */; };
 		A10000090000000000000009 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2000000B00000000000000B /* QuartzCore.framework */; };
+		A1000000A00000000000000A /* OverlayContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000C00000000000000C /* OverlayContentView.swift */; };
+		A1000000B00000000000000B /* OverlayViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000D00000000000000D /* OverlayViewModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,6 +32,8 @@
 		A20000090000000000000009 /* MetalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalView.swift; sourceTree = "<group>"; };
 		A2000000A00000000000000A /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		A2000000B00000000000000B /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		A2000000C00000000000000C /* OverlayContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayContentView.swift; sourceTree = "<group>"; };
+		A2000000D00000000000000D /* OverlayViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -48,6 +52,7 @@
 				A30000030000000000000003 /* App */,
 				A30000060000000000000006 /* Overlay */,
 				A30000070000000000000007 /* Rendering */,
+				A30000090000000000000009 /* UI */,
 				A30000040000000000000004 /* Resources */,
 				A20000030000000000000003 /* Info.plist */,
 			);
@@ -95,6 +100,15 @@
 				A20000090000000000000009 /* MetalView.swift */,
 			);
 			path = Rendering;
+			sourceTree = "<group>";
+		};
+		A30000090000000000000009 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000C00000000000000C /* OverlayContentView.swift */,
+				A2000000D00000000000000D /* OverlayViewModel.swift */,
+			);
+			path = UI;
 			sourceTree = "<group>";
 		};
 		A30000080000000000000008 /* Frameworks */ = {
@@ -165,6 +179,8 @@
 				A10000050000000000000005 /* OverlayWindowController.swift in Sources */,
 				A10000060000000000000006 /* Renderer.swift in Sources */,
 				A10000070000000000000007 /* MetalView.swift in Sources */,
+				A1000000A00000000000000A /* OverlayContentView.swift in Sources */,
+				A1000000B00000000000000B /* OverlayViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
