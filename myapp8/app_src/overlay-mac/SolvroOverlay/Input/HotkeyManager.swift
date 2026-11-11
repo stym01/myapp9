@@ -35,43 +35,67 @@ final class HotkeyManager {
         let shift = flags.contains(.shift)
         let key = event.keyCode
 
-        // ⌘Space (keyCode 49) — toggle visibility
+        // ⌘Space (keyCode 49) — toggle visibility (myapp5: Ctrl+Space)
         if cmd && !shift && key == 49 {
             controller.toggleVisibility()
             return
         }
 
-        // ⌘↑ (keyCode 126) — increase opacity
-        if cmd && !shift && key == 126 {
-            controller.adjustOpacity(delta: 0.1)
+        // ⌘Enter (keyCode 36) — send message (myapp5: Ctrl+Enter)
+        if cmd && !shift && key == 36 {
+            controller.viewModel.sendMessage()
             return
         }
 
-        // ⌘↓ (keyCode 125) — decrease opacity
-        if cmd && !shift && key == 125 {
+        // ⌘R (keyCode 15) — reset chat (myapp5: Ctrl+R)
+        if cmd && !shift && key == 15 {
+            controller.viewModel.resetChat()
+            return
+        }
+
+        // ⌘⇧[ (keyCode 33) — decrease opacity (myapp5: Ctrl+Shift+[)
+        if cmd && shift && key == 33 {
             controller.adjustOpacity(delta: -0.1)
             return
         }
 
-        // ⌘⇧C (keyCode 8) — toggle click-through
-        if cmd && shift && key == 8 {
-            controller.toggleClickThrough()
+        // ⌘⇧] (keyCode 30) — increase opacity (myapp5: Ctrl+Shift+])
+        if cmd && shift && key == 30 {
+            controller.adjustOpacity(delta: 0.1)
             return
         }
 
-        // ⌘⇧Arrow keys — move window by 50px
+        // ⌘⇧Arrow keys — move window by 50px (myapp5: Ctrl+Shift+Arrows)
         let moveStep: CGFloat = 50
         if cmd && shift {
             switch key {
-            case 123: controller.move(dx: -moveStep, dy: 0)   // ←
-            case 124: controller.move(dx: moveStep, dy: 0)    // →
-            case 126: controller.move(dx: 0, dy: moveStep)    // ↑
-            case 125: controller.move(dx: 0, dy: -moveStep)   // ↓
+            case 123: controller.move(dx: -moveStep, dy: 0); return
+            case 124: controller.move(dx: moveStep, dy: 0); return
+            case 126: controller.move(dx: 0, dy: moveStep); return
+            case 125: controller.move(dx: 0, dy: -moveStep); return
             default: break
             }
         }
 
-        // ⌘⇧Q (keyCode 12) — quit overlay
+        // ⌘⇧S (keyCode 1) — screenshot (myapp5: Ctrl+Shift+S)
+        if cmd && shift && key == 1 {
+            NSLog("[HotkeyManager] screenshot requested (not yet implemented)")
+            return
+        }
+
+        // ⌘⇧L (keyCode 37) — cycle language (myapp5: Ctrl+Shift+L)
+        if cmd && shift && key == 37 {
+            NSLog("[HotkeyManager] cycle language (not yet implemented)")
+            return
+        }
+
+        // ⌘⇧M (keyCode 46) — cycle model (myapp5: Ctrl+Shift+M)
+        if cmd && shift && key == 46 {
+            NSLog("[HotkeyManager] cycle model (not yet implemented)")
+            return
+        }
+
+        // ⌘⇧Q (keyCode 12) — quit overlay (myapp5: Ctrl+Shift+Q)
         if cmd && shift && key == 12 {
             NSLog("[HotkeyManager] quit requested")
             NSApp.terminate(nil)

@@ -5,64 +5,145 @@ final class SessionManager {
     static let shared = SessionManager()
 
     private let tokenFilename = "solvro-token.txt"
-    private let refreshInterval: TimeInterval = 24 * 60 * 60
-    private var refreshTimer: Timer?
+    private let tierCacheFilename = "solvro-tier-cache.txt"
+    private let pollInterval: TimeInterval = 5
+
+    private var pollTimer: Timer?
 
     private(set) var token: String = ""
-    private(set) var userProfile: UserProfile?
+    private(set) var email: String = ""
+    private(set) var userTier: Int = 0
+    private(set) var isLoggedIn: Bool = false
 
-    struct UserProfile {
-        let email: String
-        let name: String?
-        let plan: String?
-        let fetchedAt: Date
-    }
+    var onTokenChanged: (() -> Void)?
+    var onSignedOut: (() -> Void)?
 
     private init() {}
 
-    // MARK: - Token reading
+    // MARK: - Cookie header (matches myapp5 HttpSolvro dual-cookie)
 
-    func loadToken() -> Bool {
-        token = readTokenFromDisk()
-        if !token.isEmpty {
-            NSLog("[SessionManager] token loaded (%d chars)", token.count)
-            return true
-        }
-        NSLog("[SessionManager] no valid token found")
-        return false
+    var cookieHeader: String {
+        "next-auth.session-token=\(token); __Secure-next-auth.session-token=\(token)"
     }
 
+    // MARK: - Timezone header (matches myapp5's GetTimeZoneInformation → UTC±N)
+
+    var timezoneHeader: String {
+        let seconds = TimeZone.current.secondsFromGMT()
+        let hours = seconds / 3600
+        return "UTC\(hours >= 0 ? "+" : "")\(hours)"
+    }
+
+    // MARK: - Startup (matches myapp5 WinMain SOLVRO TOKEN AUTO-LOGIN block)
+
+    func startup() {
+        let freshToken = readTokenFromDisk()
+        if !freshToken.isEmpty {
+            token = freshToken
+            isLoggedIn = true
+            NSLog("[SessionManager] token found (%d chars), auto-login", token.count)
+
+            let cachedTier = readCachedTier()
+            if cachedTier >= 0 {
+                userTier = cachedTier
+                NSLog("[SessionManager] loaded cached tier=%d", cachedTier)
+            }
+
+            AuthService.shared.fetchSolvroUserTier()
+            AuthService.shared.fetchSolvroUsage()
+            AuthService.shared.fetchSolvroAppConfig()
+        } else {
+            NSLog("[SessionManager] no token found — user needs to sign in via Solvro app")
+        }
+    }
+
+    // MARK: - 5-second token file polling (matches myapp5 main loop DYNAMIC TOKEN RE-READ)
+
+    func startTokenPolling() {
+        pollTimer?.invalidate()
+        pollTimer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
+            self?.pollTokenFile()
+        }
+    }
+
+    func stopTokenPolling() {
+        pollTimer?.invalidate()
+        pollTimer = nil
+    }
+
+    private func pollTokenFile() {
+        let freshToken = readTokenFromDisk()
+
+        if !freshToken.isEmpty && freshToken != token {
+            NSLog("[SessionManager] token changed on disk, re-authenticating")
+            token = freshToken
+            email = ""
+            isLoggedIn = true
+            userTier = 0
+
+            let cachedTier = readCachedTier()
+            if cachedTier >= 0 {
+                userTier = cachedTier
+                NSLog("[SessionManager] loaded cached tier=%d for new token", cachedTier)
+            }
+
+            AuthService.shared.fetchSolvroUserTier()
+            AuthService.shared.fetchSolvroUsage()
+            AuthService.shared.fetchSolvroAppConfig()
+            onTokenChanged?()
+        } else if freshToken.isEmpty && !token.isEmpty {
+            NSLog("[SessionManager] token removed, user signed out")
+            token = ""
+            email = ""
+            userTier = 0
+            isLoggedIn = false
+            onSignedOut?()
+        }
+    }
+
+    // MARK: - Token file I/O
+
     private func readTokenFromDisk() -> String {
-        let paths = tokenSearchPaths()
-        for p in paths {
-            if let raw = try? String(contentsOfFile: p, encoding: .utf8) {
+        for path in tokenSearchPaths() {
+            if let raw = try? String(contentsOfFile: path, encoding: .utf8) {
                 let clean = sanitize(raw)
-                if !clean.isEmpty {
-                    NSLog("[SessionManager] read token from %@", p)
-                    return clean
-                }
+                if !clean.isEmpty { return clean }
             }
         }
         return ""
     }
 
+    func writeTokenToDisk(_ clean: String) {
+        guard let dir = solvroDir() else { return }
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let file = dir.appendingPathComponent(tokenFilename)
+        let tmp = file.appendingPathExtension("tmp")
+        do {
+            try clean.write(to: tmp, atomically: false, encoding: .utf8)
+            _ = try FileManager.default.replaceItemAt(file, withItemAt: tmp)
+        } catch {
+            try? clean.write(to: file, atomically: true, encoding: .utf8)
+        }
+    }
+
     private func tokenSearchPaths() -> [String] {
         var paths: [String] = []
-
-        // Primary: ~/Library/Application Support/Solvro/solvro-token.txt
         if let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
-            let solvroDir = appSupport.appendingPathComponent("Solvro")
-            paths.append(solvroDir.appendingPathComponent(tokenFilename).path)
+            let cacheDir = appSupport.appendingPathComponent("Solvro/cache/Solvro")
+            paths.append(cacheDir.appendingPathComponent(tokenFilename).path)
+            let legacyDir = appSupport.appendingPathComponent("solvro")
+            paths.append(legacyDir.appendingPathComponent(tokenFilename).path)
         }
-
-        // Fallback: $TMPDIR/solvro-token.txt
         let tmp = NSTemporaryDirectory()
         paths.append((tmp as NSString).appendingPathComponent(tokenFilename))
-
         return paths
     }
 
-    // Matches the Electron sanitize(): strip BOM, trim whitespace, reject control chars
+    private func solvroDir() -> URL? {
+        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        return appSupport.appendingPathComponent("Solvro/cache/Solvro")
+    }
+
     private func sanitize(_ raw: String) -> String {
         var value = raw
         if value.first == "\u{FEFF}" { value = String(value.dropFirst()) }
@@ -77,67 +158,37 @@ final class SessionManager {
         return value
     }
 
-    func setToken(_ newToken: String) {
-        let clean = sanitize(newToken)
-        guard !clean.isEmpty else { return }
-        token = clean
-        writeTokenToDisk(clean)
+    // MARK: - Tier caching (matches myapp5 ReadCachedTier / WriteCachedTier)
+
+    func readCachedTier() -> Int {
+        guard let dir = solvroDir() else { return -1 }
+        let path = dir.appendingPathComponent(tierCacheFilename).path
+        guard let raw = try? String(contentsOfFile: path, encoding: .utf8),
+              let tier = Int(raw.trimmingCharacters(in: .whitespacesAndNewlines)),
+              tier >= 0, tier <= 2 else { return -1 }
+        return tier
     }
 
-    private func writeTokenToDisk(_ clean: String) {
-        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
-        let dir = appSupport.appendingPathComponent("Solvro")
+    func writeCachedTier(_ tier: Int) {
+        guard tier >= 0, tier <= 2, let dir = solvroDir() else { return }
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let file = dir.appendingPathComponent(tokenFilename)
-        let tmp = file.appendingPathExtension("tmp")
+        let path = dir.appendingPathComponent(tierCacheFilename)
+        let tmp = path.appendingPathExtension("tmp")
         do {
-            try clean.write(to: tmp, atomically: false, encoding: .utf8)
-            _ = try FileManager.default.replaceItemAt(file, withItemAt: tmp)
-            NSLog("[SessionManager] token written to %@", file.path)
+            try "\(tier)".write(to: tmp, atomically: false, encoding: .utf8)
+            _ = try FileManager.default.replaceItemAt(path, withItemAt: tmp)
         } catch {
-            try? clean.write(to: file, atomically: true, encoding: .utf8)
+            try? "\(tier)".write(to: path, atomically: true, encoding: .utf8)
         }
     }
 
-    // MARK: - Cookie header
+    // MARK: - Tier update (called by AuthService after FetchSolvroUserTier)
 
-    var cookieHeader: String {
-        "next-auth.session-token=\(token); __Secure-next-auth.session-token=\(token)"
-    }
-
-    var isLoggedIn: Bool { !token.isEmpty }
-
-    // MARK: - Token refresh timer
-
-    func startRefreshTimer() {
-        refreshTimer?.invalidate()
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
-            self?.refreshToken()
-        }
-        // Also refresh once right away
-        refreshToken()
-    }
-
-    func stopRefreshTimer() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
-    }
-
-    private func refreshToken() {
-        guard !token.isEmpty else { return }
-        AuthService.shared.refreshToken { [weak self] newToken in
-            guard let self, let newToken, !newToken.isEmpty else { return }
-            self.setToken(newToken)
-            NSLog("[SessionManager] token refreshed")
-        }
-    }
-
-    // MARK: - Profile
-
-    func fetchProfile(completion: @escaping (UserProfile?) -> Void) {
-        AuthService.shared.fetchUserProfile { [weak self] profile in
-            self?.userProfile = profile
-            completion(profile)
-        }
+    func updateTier(_ tier: Int, email: String) {
+        self.userTier = tier
+        if !email.isEmpty { self.email = email }
+        writeCachedTier(tier)
+        if !token.isEmpty { writeTokenToDisk(token) }
+        NSLog("[SessionManager] tier=%d email=%@", tier, self.email)
     }
 }

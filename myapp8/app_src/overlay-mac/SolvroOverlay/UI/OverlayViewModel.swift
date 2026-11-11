@@ -38,6 +38,14 @@ final class OverlayViewModel: ObservableObject {
         }
     }
 
+    func resetChat() {
+        messages.removeAll()
+        inputText = ""
+        isLoading = false
+        statusText = "Ready"
+        NSLog("[OverlayViewModel] chat reset")
+    }
+
     func clearMessages() {
         messages.removeAll()
     }

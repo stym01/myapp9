@@ -8,20 +8,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
 
-        // Auth: load token from disk, start 24h refresh timer
         let session = SessionManager.shared
-        if session.loadToken() {
-            session.startRefreshTimer()
-            session.fetchProfile { profile in
-                if let p = profile {
-                    NSLog("[SolvroOverlay] logged in as %@", p.email)
-                    self.overlayController.viewModel.statusText = p.email
-                } else {
-                    self.overlayController.viewModel.statusText = "Not logged in"
-                }
-            }
+
+        session.onTokenChanged = { [weak self] in
+            let email = session.email
+            self?.overlayController.viewModel.statusText = email.isEmpty ? "Signed in via Solvro." : email
+        }
+
+        session.onSignedOut = { [weak self] in
+            self?.overlayController.viewModel.statusText = "Please sign in via the Solvro app"
+        }
+
+        session.startup()
+        session.startTokenPolling()
+
+        if session.isLoggedIn {
+            overlayController.viewModel.statusText = session.email.isEmpty ? "Signed in via Solvro." : session.email
         } else {
-            NSLog("[SolvroOverlay] no session token — user needs to log in via Electron")
+            overlayController.viewModel.statusText = "Please sign in via the Solvro app"
         }
 
         overlayController.createAndShow()
@@ -34,7 +38,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        SessionManager.shared.stopRefreshTimer()
+        SessionManager.shared.stopTokenPolling()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
