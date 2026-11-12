@@ -6,6 +6,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     let overlayController = OverlayWindowController()
     var hotkeyManager: HotkeyManager?
+    var bridgeAdapter: SwiftBridgeAdapter?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -49,10 +50,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         hk.start()
         self.hotkeyManager = hk
 
-        NSLog("[SolvroOverlay] v%@ overlay is live, hotkeys active", kOverlayVersion)
+        let adapter = SwiftBridgeAdapter(controller: overlayController)
+        adapter.start()
+        self.bridgeAdapter = adapter
+
+        NSLog("[SolvroOverlay] v%@ overlay is live, hotkeys active, bridge polling", kOverlayVersion)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        bridgeAdapter?.stop()
         if let panel = overlayController.panel {
             WindowManager.shared.saveWindowPosition(panel)
         }

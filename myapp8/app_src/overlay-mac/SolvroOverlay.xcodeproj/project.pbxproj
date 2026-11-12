@@ -45,6 +45,7 @@
 		A10000350000000000000035 /* imgui_impl_osx.mm in Sources */ = {isa = PBXBuildFile; fileRef = A2000003C00000000000003C /* imgui_impl_osx.mm */; };
 		A10000360000000000000036 /* ImGuiBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = A2000003F00000000000003F /* ImGuiBridge.mm */; };
 		A10000370000000000000037 /* GameController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000500000000000000050 /* GameController.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
+		A10000380000000000000038 /* SwiftBridgeAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000410000000000000041 /* SwiftBridgeAdapter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -98,6 +99,7 @@
 		A2000003F00000000000003F /* ImGuiBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ImGuiBridge.mm; sourceTree = "<group>"; };
 		A20000400000000000000040 /* SolvroOverlay-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "SolvroOverlay-Bridging-Header.h"; sourceTree = "<group>"; };
 		A20000500000000000000050 /* GameController.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GameController.framework; path = System/Library/Frameworks/GameController.framework; sourceTree = SDKROOT; };
+		A20000410000000000000041 /* SwiftBridgeAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftBridgeAdapter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -305,6 +307,7 @@
 				A2000003E00000000000003E /* ImGuiBridge.h */,
 				A2000003F00000000000003F /* ImGuiBridge.mm */,
 				A20000400000000000000040 /* SolvroOverlay-Bridging-Header.h */,
+				A20000410000000000000041 /* SwiftBridgeAdapter.swift */,
 			);
 			path = Bridge;
 			sourceTree = "<group>";
@@ -396,6 +399,7 @@
 				A10000340000000000000034 /* imgui_impl_metal.mm in Sources */,
 				A10000350000000000000035 /* imgui_impl_osx.mm in Sources */,
 				A10000360000000000000036 /* ImGuiBridge.mm in Sources */,
+				A10000380000000000000038 /* SwiftBridgeAdapter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
