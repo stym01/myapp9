@@ -4,6 +4,14 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <AppKit/NSView.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ImGuiBridge_Init(id<MTLDevice> _Nonnull device, NSView* _Nonnull view);
 void ImGuiBridge_RenderFrame(CAMetalLayer* _Nonnull layer, id<MTLCommandQueue> _Nonnull commandQueue);
 void ImGuiBridge_Shutdown(void);
+
+#ifdef __cplusplus
+}
+#endif
