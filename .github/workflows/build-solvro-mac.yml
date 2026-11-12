@@ -34,7 +34,7 @@ jobs:
 
       - name: Copy ImGui sources into overlay project
         run: |
-          IMGUI_SRC=myapp8/myapp5
+          IMGUI_SRC=myapp7
           IMGUI_DST=myapp8/app_src/overlay-mac/imgui
 
           mkdir -p "$IMGUI_DST/backends"
