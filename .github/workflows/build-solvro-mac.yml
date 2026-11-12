@@ -32,7 +32,33 @@ jobs:
           node --version
           npm --version
 
-      - name: Build native Mac overlay (Swift/Metal)
+      - name: Copy ImGui sources into overlay project
+        run: |
+          IMGUI_SRC=myapp8/myapp5
+          IMGUI_DST=myapp8/app_src/overlay-mac/imgui
+
+          mkdir -p "$IMGUI_DST/backends"
+
+          cp "$IMGUI_SRC/imgui.cpp"          "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imgui.h"            "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imgui_internal.h"   "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imgui_draw.cpp"     "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imgui_tables.cpp"   "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imgui_widgets.cpp"  "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imconfig.h"         "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imstb_rectpack.h"   "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imstb_textedit.h"   "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imstb_truetype.h"   "$IMGUI_DST/"
+
+          cp "$IMGUI_SRC/backends/imgui_impl_metal.mm" "$IMGUI_DST/backends/"
+          cp "$IMGUI_SRC/backends/imgui_impl_metal.h"  "$IMGUI_DST/backends/"
+          cp "$IMGUI_SRC/backends/imgui_impl_osx.mm"   "$IMGUI_DST/backends/"
+          cp "$IMGUI_SRC/backends/imgui_impl_osx.h"    "$IMGUI_DST/backends/"
+
+          echo "=== ImGui sources copied ==="
+          ls -la "$IMGUI_DST/"
+
+      - name: Build native Mac overlay (Swift/Metal + ImGui)
         working-directory: ./myapp8/app_src/overlay-mac
         run: |
           echo "=== Building solvro-overlay.app (arm64) ==="
@@ -43,7 +69,7 @@ jobs:
             -arch arm64 \
             ONLY_ACTIVE_ARCH=NO \
             CODE_SIGN_IDENTITY="-" \
-            build 2>&1 | tail -10
+            build 2>&1 | tail -30
 
           APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "solvro-overlay.app" -type d | head -1)
           echo "Built: $APP_PATH"
@@ -78,7 +104,6 @@ jobs:
           DMG=$(find myapp8/app_src/dist -name "*.dmg" | head -1)
           echo "DMG: $DMG"
 
-          # Mount and check
           hdiutil attach "$DMG" -nobrowse -mountpoint /Volumes/Solvro
           echo "=== DMG contents ==="
           ls -la /Volumes/Solvro/
@@ -91,10 +116,10 @@ jobs:
 
           OVERLAY=$(find "$APP" -name "solvro-overlay.app" -type d | head -1)
           if [ -n "$OVERLAY" ]; then
-            echo "✅ Overlay bundled at: $OVERLAY"
+            echo "Overlay bundled at: $OVERLAY"
             ls -la "$OVERLAY/Contents/MacOS/"
           else
-            echo "❌ Overlay NOT found inside app bundle!"
+            echo "Overlay NOT found inside app bundle!"
             find "$APP/Contents/Resources" -maxdepth 3 -type d
             hdiutil detach /Volumes/Solvro || true
             exit 1

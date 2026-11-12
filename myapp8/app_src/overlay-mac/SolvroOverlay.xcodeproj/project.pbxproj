@@ -37,6 +37,14 @@
 		A1000001C000000000000001C /* PermissionsHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001E000000000000001E /* PermissionsHelper.swift */; };
 		A1000001D000000000000001D /* MarkdownParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000001F000000000000001F /* MarkdownParser.swift */; };
 		A1000001E000000000000001E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000200000000000000020 /* SettingsView.swift */; };
+		A10000300000000000000030 /* imgui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A20000300000000000000030 /* imgui.cpp */; };
+		A10000310000000000000031 /* imgui_draw.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A20000330000000000000033 /* imgui_draw.cpp */; };
+		A10000320000000000000032 /* imgui_tables.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A20000340000000000000034 /* imgui_tables.cpp */; };
+		A10000330000000000000033 /* imgui_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A20000350000000000000035 /* imgui_widgets.cpp */; };
+		A10000340000000000000034 /* imgui_impl_metal.mm in Sources */ = {isa = PBXBuildFile; fileRef = A2000003A00000000000003A /* imgui_impl_metal.mm */; };
+		A10000350000000000000035 /* imgui_impl_osx.mm in Sources */ = {isa = PBXBuildFile; fileRef = A2000003C00000000000003C /* imgui_impl_osx.mm */; };
+		A10000360000000000000036 /* ImGuiBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = A2000003F00000000000003F /* ImGuiBridge.mm */; };
+		A10000370000000000000037 /* GameController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000500000000000000050 /* GameController.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -72,12 +80,31 @@
 		A2000001E000000000000001E /* PermissionsHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsHelper.swift; sourceTree = "<group>"; };
 		A2000001F000000000000001F /* MarkdownParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownParser.swift; sourceTree = "<group>"; };
 		A20000200000000000000020 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A20000300000000000000030 /* imgui.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = imgui.cpp; sourceTree = "<group>"; };
+		A20000310000000000000031 /* imgui.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = imgui.h; sourceTree = "<group>"; };
+		A20000320000000000000032 /* imgui_internal.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = imgui_internal.h; sourceTree = "<group>"; };
+		A20000330000000000000033 /* imgui_draw.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = imgui_draw.cpp; sourceTree = "<group>"; };
+		A20000340000000000000034 /* imgui_tables.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = imgui_tables.cpp; sourceTree = "<group>"; };
+		A20000350000000000000035 /* imgui_widgets.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = imgui_widgets.cpp; sourceTree = "<group>"; };
+		A20000360000000000000036 /* imconfig.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = imconfig.h; sourceTree = "<group>"; };
+		A20000370000000000000037 /* imstb_rectpack.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = imstb_rectpack.h; sourceTree = "<group>"; };
+		A20000380000000000000038 /* imstb_textedit.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = imstb_textedit.h; sourceTree = "<group>"; };
+		A20000390000000000000039 /* imstb_truetype.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = imstb_truetype.h; sourceTree = "<group>"; };
+		A2000003A00000000000003A /* imgui_impl_metal.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = imgui_impl_metal.mm; sourceTree = "<group>"; };
+		A2000003B00000000000003B /* imgui_impl_metal.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = imgui_impl_metal.h; sourceTree = "<group>"; };
+		A2000003C00000000000003C /* imgui_impl_osx.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = imgui_impl_osx.mm; sourceTree = "<group>"; };
+		A2000003D00000000000003D /* imgui_impl_osx.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = imgui_impl_osx.h; sourceTree = "<group>"; };
+		A2000003E00000000000003E /* ImGuiBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ImGuiBridge.h; sourceTree = "<group>"; };
+		A2000003F00000000000003F /* ImGuiBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ImGuiBridge.mm; sourceTree = "<group>"; };
+		A20000400000000000000040 /* SolvroOverlay-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "SolvroOverlay-Bridging-Header.h"; sourceTree = "<group>"; };
+		A20000500000000000000050 /* GameController.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GameController.framework; path = System/Library/Frameworks/GameController.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
 		A30000010000000000000001 /* root */ = {
 			isa = PBXGroup;
 			children = (
+				A30000200000000000000020 /* imgui */,
 				A30000020000000000000002 /* SolvroOverlay */,
 				A30000050000000000000005 /* Products */,
 				A30000080000000000000008 /* Frameworks */,
@@ -90,6 +117,7 @@
 				A30000030000000000000003 /* App */,
 				A30000060000000000000006 /* Overlay */,
 				A30000070000000000000007 /* Rendering */,
+				A30000220000000000000022 /* Bridge */,
 				A30000090000000000000009 /* UI */,
 				A300000A000000000000000A /* Input */,
 				A300000B000000000000000B /* Auth */,
@@ -237,8 +265,48 @@
 			children = (
 				A2000000A00000000000000A /* Metal.framework */,
 				A2000000B00000000000000B /* QuartzCore.framework */,
+				A20000500000000000000050 /* GameController.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		A30000200000000000000020 /* imgui */ = {
+			isa = PBXGroup;
+			children = (
+				A20000300000000000000030 /* imgui.cpp */,
+				A20000310000000000000031 /* imgui.h */,
+				A20000320000000000000032 /* imgui_internal.h */,
+				A20000330000000000000033 /* imgui_draw.cpp */,
+				A20000340000000000000034 /* imgui_tables.cpp */,
+				A20000350000000000000035 /* imgui_widgets.cpp */,
+				A20000360000000000000036 /* imconfig.h */,
+				A20000370000000000000037 /* imstb_rectpack.h */,
+				A20000380000000000000038 /* imstb_textedit.h */,
+				A20000390000000000000039 /* imstb_truetype.h */,
+				A30000210000000000000021 /* backends */,
+			);
+			path = imgui;
+			sourceTree = "<group>";
+		};
+		A30000210000000000000021 /* backends */ = {
+			isa = PBXGroup;
+			children = (
+				A2000003A00000000000003A /* imgui_impl_metal.mm */,
+				A2000003B00000000000003B /* imgui_impl_metal.h */,
+				A2000003C00000000000003C /* imgui_impl_osx.mm */,
+				A2000003D00000000000003D /* imgui_impl_osx.h */,
+			);
+			path = backends;
+			sourceTree = "<group>";
+		};
+		A30000220000000000000022 /* Bridge */ = {
+			isa = PBXGroup;
+			children = (
+				A2000003E00000000000003E /* ImGuiBridge.h */,
+				A2000003F00000000000003F /* ImGuiBridge.mm */,
+				A20000400000000000000040 /* SolvroOverlay-Bridging-Header.h */,
+			);
+			path = Bridge;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -321,6 +389,13 @@
 				A1000001C000000000000001C /* PermissionsHelper.swift in Sources */,
 				A1000001D000000000000001D /* MarkdownParser.swift in Sources */,
 				A1000001E000000000000001E /* SettingsView.swift in Sources */,
+				A10000300000000000000030 /* imgui.cpp in Sources */,
+				A10000310000000000000031 /* imgui_draw.cpp in Sources */,
+				A10000320000000000000032 /* imgui_tables.cpp in Sources */,
+				A10000330000000000000033 /* imgui_widgets.cpp in Sources */,
+				A10000340000000000000034 /* imgui_impl_metal.mm in Sources */,
+				A10000350000000000000035 /* imgui_impl_osx.mm in Sources */,
+				A10000360000000000000036 /* ImGuiBridge.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -333,6 +408,7 @@
 			files = (
 				A10000080000000000000008 /* Metal.framework in Frameworks */,
 				A10000090000000000000009 /* QuartzCore.framework in Frameworks */,
+				A10000370000000000000037 /* GameController.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -359,6 +435,10 @@
 				);
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/imgui",
+					"$(SRCROOT)/imgui/backends",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				ONLY_ACTIVE_ARCH = YES;
@@ -382,6 +462,10 @@
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/imgui",
+					"$(SRCROOT)/imgui/backends",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = macosx;
@@ -409,6 +493,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.solvro.overlay;
 				PRODUCT_NAME = "solvro-overlay";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "SolvroOverlay/Bridge/SolvroOverlay-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -432,6 +517,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.solvro.overlay;
 				PRODUCT_NAME = "solvro-overlay";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "SolvroOverlay/Bridge/SolvroOverlay-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;

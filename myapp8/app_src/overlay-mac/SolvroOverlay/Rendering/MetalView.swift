@@ -3,26 +3,24 @@ import Metal
 import QuartzCore
 
 /// An NSView backed by a `CAMetalLayer`, driven by a `CVDisplayLink` for
-/// vsync-paced rendering. The layer is configured as non-opaque with
-/// premultiplied-alpha so transparent regions of the overlay show the
-/// desktop beneath.
-///
-/// In Phase 4+ this view sits behind an NSHostingView (SwiftUI) so the
-/// Metal layer can composite custom effects underneath the UI.
+/// vsync-paced rendering.  Hosts Dear ImGui via the Metal backend.
 final class MetalView: NSView {
 
     private(set) var metalLayer: CAMetalLayer!
-    private var renderer: Renderer?
+    let device: MTLDevice
+    let commandQueue: MTLCommandQueue
     private var displayLink: CVDisplayLink?
+    private var isRendering = false
+    private var imguiReady = false
 
     // MARK: - Init
 
-    init(frame: NSRect, renderer: Renderer) {
-        self.renderer = renderer
+    init(frame: NSRect, device: MTLDevice, commandQueue: MTLCommandQueue) {
+        self.device = device
+        self.commandQueue = commandQueue
         super.init(frame: frame)
         wantsLayer = true
         setupMetalLayer()
-        startDisplayLink()
     }
 
     @available(*, unavailable)
@@ -30,13 +28,23 @@ final class MetalView: NSView {
 
     deinit {
         stopDisplayLink()
+        ImGuiBridge_Shutdown()
+    }
+
+    // MARK: - ImGui lifecycle
+
+    func initImGui() {
+        guard !imguiReady else { return }
+        ImGuiBridge_Init(device, self)
+        imguiReady = true
+        startDisplayLink()
     }
 
     // MARK: - Layer setup
 
     override func makeBackingLayer() -> CALayer {
         let layer = CAMetalLayer()
-        layer.device = renderer?.device
+        layer.device = device
         layer.pixelFormat = .bgra8Unorm
         layer.isOpaque = false
         layer.framebufferOnly = false
@@ -48,7 +56,7 @@ final class MetalView: NSView {
 
     private func setupMetalLayer() {
         guard let metalLayer else { return }
-        metalLayer.device = renderer?.device
+        metalLayer.device = device
         updateDrawableSize()
     }
 
@@ -94,13 +102,13 @@ final class MetalView: NSView {
         let this = Unmanaged.passUnretained(self).toOpaque()
         CVDisplayLinkSetOutputCallback(link, { (_, _, _, _, _, userInfo) -> CVReturn in
             let view = Unmanaged<MetalView>.fromOpaque(userInfo!).takeUnretainedValue()
-            view.renderFrame()
+            view.displayLinkFired()
             return kCVReturnSuccess
         }, this)
 
         CVDisplayLinkStart(link)
         self.displayLink = link
-        NSLog("[MetalView] display link started")
+        NSLog("[MetalView] display link started (ImGui mode)")
     }
 
     private func stopDisplayLink() {
@@ -109,8 +117,22 @@ final class MetalView: NSView {
         displayLink = nil
     }
 
-    private func renderFrame() {
-        guard let metalLayer, let renderer else { return }
-        renderer.draw(in: metalLayer)
+    private func displayLinkFired() {
+        guard !isRendering else { return }
+        isRendering = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            defer { self.isRendering = false }
+            self.renderFrame()
+        }
     }
+
+    private func renderFrame() {
+        guard let metalLayer, imguiReady else { return }
+        ImGuiBridge_RenderFrame(metalLayer, commandQueue)
+    }
+
+    // MARK: - Event handling (forward to ImGui via responder chain)
+
+    override var acceptsFirstResponder: Bool { true }
 }

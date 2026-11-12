@@ -1,12 +1,5 @@
 name: Build macOS Native Overlay
 
-# Builds the native Swift overlay as a universal (x86_64 + arm64) macOS app
-# bundle and uploads it as a workflow artifact.
-#
-# Note: The source workflows also live in myapp8/.github/workflows/ as the
-# canonical copies. This root-level file is needed because GitHub Actions
-# only reads from .github/workflows/ at the repo root.
-
 on:
   push:
     branches: ['**']
@@ -18,6 +11,7 @@ on:
     paths:
       - 'myapp8/app_src/overlay-mac/**'
       - '.github/workflows/build-overlay-mac.yml'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -29,7 +23,6 @@ jobs:
 
       - name: Select Xcode
         run: |
-          # Use whatever Xcode is pre-installed on the runner
           ls /Applications/Xcode*.app/Contents/Developer 2>/dev/null | head -5
           xcodebuild -version
 
@@ -37,6 +30,35 @@ jobs:
         run: |
           xcodebuild -version
           swift --version
+
+      - name: Copy ImGui sources into overlay project
+        run: |
+          IMGUI_SRC=myapp8/myapp5
+          IMGUI_DST=myapp8/app_src/overlay-mac/imgui
+
+          mkdir -p "$IMGUI_DST/backends"
+
+          # Core ImGui files
+          cp "$IMGUI_SRC/imgui.cpp"          "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imgui.h"            "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imgui_internal.h"   "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imgui_draw.cpp"     "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imgui_tables.cpp"   "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imgui_widgets.cpp"  "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imconfig.h"         "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imstb_rectpack.h"   "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imstb_textedit.h"   "$IMGUI_DST/"
+          cp "$IMGUI_SRC/imstb_truetype.h"   "$IMGUI_DST/"
+
+          # Metal + macOS backends
+          cp "$IMGUI_SRC/backends/imgui_impl_metal.mm" "$IMGUI_DST/backends/"
+          cp "$IMGUI_SRC/backends/imgui_impl_metal.h"  "$IMGUI_DST/backends/"
+          cp "$IMGUI_SRC/backends/imgui_impl_osx.mm"   "$IMGUI_DST/backends/"
+          cp "$IMGUI_SRC/backends/imgui_impl_osx.h"    "$IMGUI_DST/backends/"
+
+          echo "=== ImGui sources copied ==="
+          ls -la "$IMGUI_DST/"
+          ls -la "$IMGUI_DST/backends/"
 
       - name: Build Release (universal)
         working-directory: ./myapp8/app_src/overlay-mac
